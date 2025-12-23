@@ -1,37 +1,47 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   RefreshControl,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
+  ScrollView,
   View,
   TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { Image as ExpoImage } from 'expo-image';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { Colors } from '@/constants/theme';
 import { db } from '@/config/firebaseConfig';
-import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 
 type Report = {
   id: string;
   type: 'person' | 'object';
+  kind?: 'lost' | 'found';
   title: string;
   city?: string;
   status?: string;
+  imageUrl?: string;
   createdAt?: { seconds: number; nanoseconds: number } | null;
 };
 
-type FilterType = 'all' | 'person' | 'object';
+type FilterType = 'all' | 'person' | 'object_lost' | 'object_found';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<FilterType>('all');
 
@@ -40,8 +50,14 @@ export default function HomeScreen() {
     let result = reports;
 
     // Filtre par type
-    if (filterType !== 'all') {
-      result = result.filter((r) => r.type === filterType);
+    if (filterType === 'person') {
+      result = result.filter((r) => r.type === 'person');
+    }
+    if (filterType === 'object_lost') {
+      result = result.filter((r) => r.type === 'object' && (r.kind ?? 'lost') === 'lost');
+    }
+    if (filterType === 'object_found') {
+      result = result.filter((r) => r.type === 'object' && (r.kind ?? 'lost') === 'found');
     }
 
     // Filtre par recherche
@@ -58,37 +74,70 @@ export default function HomeScreen() {
   }, [reports, searchQuery, filterType]);
 
   useEffect(() => {
-    const q = query(collection(db, 'reports'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(
-      q,
+    setLoading(true);
+    setError(null);
+
+    const mapSnap = (snapshot: any) => {
+      const data: Report[] = snapshot.docs.map((doc: any) => {
+        const d = doc.data() as any;
+        return {
+          id: doc.id,
+          type: d.type === 'object' ? 'object' : 'person',
+          kind: d.kind === 'found' ? 'found' : 'lost',
+          title: d.title || '',
+          city: d.city,
+          status: d.status || 'open',
+          imageUrl: d.imageUrl,
+          createdAt: d.createdAt ?? null,
+        };
+      });
+      setReports(data);
+      setLoading(false);
+      setRefreshing(false);
+    };
+
+    const qWithOrder = query(
+      collection(db, 'reports'),
+      where('moderationStatus', '==', 'approved'),
+      orderBy('createdAt', 'desc')
+    );
+
+    const qNoOrder = query(collection(db, 'reports'), where('moderationStatus', '==', 'approved'));
+
+    const unsubPrimary = onSnapshot(
+      qWithOrder,
       (snapshot) => {
-        const data: Report[] = snapshot.docs.map((doc) => {
-          const d = doc.data() as any;
-          return {
-            id: doc.id,
-            type: d.type === 'object' ? 'object' : 'person',
-            title: d.title || '',
-            city: d.city,
-            status: d.status || 'open',
-            createdAt: d.createdAt ?? null,
-          };
-        });
-        setReports(data);
-        setLoading(false);
-        setRefreshing(false);
+        setError(null);
+        mapSnap(snapshot);
       },
-      (error) => {
-        console.error('Error loading reports', error);
-        setLoading(false);
-        setRefreshing(false);
+      (e) => {
+        console.error('Error loading reports', e);
+        setError((e as any)?.message ?? 'Impossible de charger les publications.');
+        setLoading(true);
+
+        const unsubFallback = onSnapshot(
+          qNoOrder,
+          (snapshot) => {
+            mapSnap(snapshot);
+          },
+          (e2) => {
+            console.error('Fallback error loading reports', e2);
+            setError(((e2 as any)?.message ?? 'Impossible de charger les publications.') + '\n' + ((e as any)?.message ?? ''));
+            setLoading(false);
+            setRefreshing(false);
+          }
+        );
+
+        return () => unsubFallback();
       }
     );
 
-    return () => unsubscribe();
-  }, []);
+    return () => unsubPrimary();
+  }, [reloadKey]);
 
   const onRefresh = () => {
     setRefreshing(true);
+    setReloadKey((k) => k + 1);
   };
 
   const renderItem = ({ item }: { item: Report }) => {
@@ -97,7 +146,7 @@ export default function HomeScreen() {
     const statusLabel = item.status === 'resolved' ? 'Résolu' : 'En cours';
     const statusColor = item.status === 'resolved' ? '#16a34a' : '#f59e0b';
     const typeGradient: [string, string] = isPerson
-      ? ['#3b82f6', '#1d4ed8']
+      ? [Colors.light.togoGreen, '#004b37']
       : ['#64748b', '#334155'];
 
     return (
@@ -106,20 +155,34 @@ export default function HomeScreen() {
         activeOpacity={0.9}
         onPress={() => router.push({ pathname: '/report-detail', params: { id: item.id } })}
       >
-        {/* Bande colorée à gauche */}
-        <LinearGradient
-          colors={typeGradient}
-          style={styles.cardAccent}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-        />
+        {item.imageUrl ? (
+          <View style={styles.coverWrap}>
+            <ExpoImage
+              source={{ uri: item.imageUrl }}
+              style={styles.coverImage}
+              contentFit="cover"
+              transition={150}
+            />
+            <LinearGradient
+              colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.35)']}
+              style={styles.coverOverlay}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+            />
+          </View>
+        ) : null}
 
-        <View style={styles.cardContent}>
+        <View style={styles.cardBody}>
           <View style={styles.cardHeader}>
             <View style={styles.typeBadge}>
-              <View style={[styles.iconCircle, { backgroundColor: isPerson ? '#dbeafe' : '#f1f5f9' }]}>
-                <Ionicons name={iconName} size={20} color={isPerson ? '#1d4ed8' : '#475569'} />
-              </View>
+              <LinearGradient
+                colors={typeGradient}
+                style={styles.iconGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Ionicons name={iconName} size={18} color="#ffffff" />
+              </LinearGradient>
               <View>
                 <ThemedText style={styles.typeText}>
                   {isPerson ? 'Personne disparue' : 'Objet perdu'}
@@ -141,7 +204,7 @@ export default function HomeScreen() {
 
           <View style={styles.footerRow}>
             <ThemedText style={styles.viewMore}>Voir le détail</ThemedText>
-            <Ionicons name="chevron-forward" size={16} color="#3b82f6" />
+            <Ionicons name="chevron-forward" size={16} color={Colors.light.togoGreen} />
           </View>
         </View>
       </TouchableOpacity>
@@ -152,7 +215,7 @@ export default function HomeScreen() {
     <View style={styles.screen}>
       {/* Header avec dégradé */}
       <LinearGradient
-        colors={['#0f172a', '#1e3a5f', '#0f172a']}
+        colors={['#003c2c', Colors.light.togoGreen, Colors.light.togoYellow]}
         style={styles.headerGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -170,6 +233,15 @@ export default function HomeScreen() {
               <ThemedText style={styles.headerTitle}>Agoo Alert</ThemedText>
               <ThemedText style={styles.headerSubtitle}>Plateforme nationale d'alerte</ThemedText>
             </View>
+
+            <View style={{ flex: 1 }} />
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: '/about' as any })}
+              activeOpacity={0.85}
+              style={styles.aboutBtn}
+            >
+              <Ionicons name="information-circle" size={22} color="#ffffff" />
+            </TouchableOpacity>
           </View>
 
           {/* Barre de recherche */}
@@ -218,47 +290,77 @@ export default function HomeScreen() {
       {/* Liste */}
       <View style={styles.listContainer}>
         {/* Filtres par type */}
-        <View style={styles.filtersRow}>
-          <TouchableOpacity
-            style={[styles.filterChip, filterType === 'all' && styles.filterChipActive]}
-            onPress={() => setFilterType('all')}
-          >
-            <Ionicons
-              name="grid-outline"
-              size={14}
-              color={filterType === 'all' ? '#ffffff' : '#64748b'}
-            />
-            <ThemedText style={[styles.filterText, filterType === 'all' && styles.filterTextActive]}>
-              Tout
-            </ThemedText>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.filterChip, filterType === 'person' && styles.filterChipActive]}
-            onPress={() => setFilterType('person')}
-          >
-            <Ionicons
-              name="person-outline"
-              size={14}
-              color={filterType === 'person' ? '#ffffff' : '#64748b'}
-            />
-            <ThemedText style={[styles.filterText, filterType === 'person' && styles.filterTextActive]}>
-              Personnes
-            </ThemedText>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.filterChip, filterType === 'object' && styles.filterChipActive]}
-            onPress={() => setFilterType('object')}
-          >
-            <Ionicons
-              name="briefcase-outline"
-              size={14}
-              color={filterType === 'object' ? '#ffffff' : '#64748b'}
-            />
-            <ThemedText style={[styles.filterText, filterType === 'object' && styles.filterTextActive]}>
-              Objets
-            </ThemedText>
-          </TouchableOpacity>
-        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersRow}>
+          <Pressable onPress={() => setFilterType('all')}>
+            {({ pressed }) => (
+              <View
+                style={[
+                  styles.filterChip,
+                  filterType === 'all' && styles.filterChipActive,
+                  pressed && styles.filterChipPressed,
+                ]}
+              >
+                <Ionicons name="grid-outline" size={14} color={filterType === 'all' ? '#ffffff' : '#64748b'} />
+                <ThemedText style={[styles.filterText, filterType === 'all' && styles.filterTextActive]}>Tout</ThemedText>
+              </View>
+            )}
+          </Pressable>
+
+          <Pressable onPress={() => setFilterType('person')}>
+            {({ pressed }) => (
+              <View
+                style={[
+                  styles.filterChip,
+                  filterType === 'person' && styles.filterChipActive,
+                  pressed && styles.filterChipPressed,
+                ]}
+              >
+                <Ionicons name="person-outline" size={14} color={filterType === 'person' ? '#ffffff' : '#64748b'} />
+                <ThemedText style={[styles.filterText, filterType === 'person' && styles.filterTextActive]}>
+                  Personnes
+                </ThemedText>
+              </View>
+            )}
+          </Pressable>
+
+          <Pressable onPress={() => setFilterType('object_lost')}>
+            {({ pressed }) => (
+              <View
+                style={[
+                  styles.filterChip,
+                  filterType === 'object_lost' && styles.filterChipActive,
+                  pressed && styles.filterChipPressed,
+                ]}
+              >
+                <Ionicons name="briefcase-outline" size={14} color={filterType === 'object_lost' ? '#ffffff' : '#64748b'} />
+                <ThemedText style={[styles.filterText, filterType === 'object_lost' && styles.filterTextActive]}>
+                  Objets perdus
+                </ThemedText>
+              </View>
+            )}
+          </Pressable>
+
+          <Pressable onPress={() => setFilterType('object_found')}>
+            {({ pressed }) => (
+              <View
+                style={[
+                  styles.filterChip,
+                  filterType === 'object_found' && styles.filterChipActive,
+                  pressed && styles.filterChipPressed,
+                ]}
+              >
+                <Ionicons
+                  name="checkmark-circle-outline"
+                  size={14}
+                  color={filterType === 'object_found' ? '#ffffff' : '#64748b'}
+                />
+                <ThemedText style={[styles.filterText, filterType === 'object_found' && styles.filterTextActive]}>
+                  Objets trouvés
+                </ThemedText>
+              </View>
+            )}
+          </Pressable>
+        </ScrollView>
 
         {/* Titre de section */}
         <View style={styles.sectionHeader}>
@@ -299,7 +401,10 @@ export default function HomeScreen() {
           <FlatList
             data={filteredReports}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[
+              styles.listContent,
+              { paddingBottom: Math.max(120, insets.bottom + 120) },
+            ]}
             renderItem={renderItem}
             showsVerticalScrollIndicator={false}
             refreshControl={
@@ -335,7 +440,7 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     borderRadius: 75,
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    backgroundColor: 'rgba(255, 206, 0, 0.22)',
   },
   decorCircle2: {
     position: 'absolute',
@@ -344,7 +449,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    backgroundColor: 'rgba(210, 16, 52, 0.14)',
   },
   headerContent: {
     zIndex: 1,
@@ -359,7 +464,15 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(59, 130, 246, 0.3)',
+    backgroundColor: 'rgba(255, 206, 0, 0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aboutBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -446,11 +559,10 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   listContent: {
-    paddingBottom: 100,
     gap: 12,
   },
   card: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     borderRadius: 16,
     backgroundColor: '#ffffff',
     shadowColor: '#0f172a',
@@ -460,11 +572,23 @@ const styles = StyleSheet.create({
     elevation: 4,
     overflow: 'hidden',
   },
-  cardAccent: {
-    width: 5,
+  coverWrap: {
+    width: '100%',
+    height: 170,
+    backgroundColor: '#f1f5f9',
   },
-  cardContent: {
-    flex: 1,
+  coverImage: {
+    width: '100%',
+    height: '100%',
+  },
+  coverOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 70,
+  },
+  cardBody: {
     padding: 14,
   },
   cardHeader: {
@@ -478,10 +602,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
-  iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  iconGradient: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -559,18 +683,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginBottom: 12,
+    paddingRight: 8,
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
     backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   filterChipActive: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: Colors.light.togoGreen,
+    borderColor: Colors.light.togoGreen,
+  },
+  filterChipPressed: {
+    backgroundColor: 'rgba(255, 206, 0, 0.22)',
+    borderColor: 'rgba(255, 206, 0, 0.35)',
   },
   filterText: {
     fontSize: 13,

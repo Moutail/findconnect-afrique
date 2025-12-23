@@ -17,16 +17,20 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { auth } from '@/config/firebaseConfig';
+import { auth, db } from '@/config/firebaseConfig';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { Colors } from '@/constants/theme';
 
 const { width, height } = Dimensions.get('window');
 const isSmallDevice = height < 700;
 
 export default function LoginScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ mode?: string }>();
   const [phone, setPhone] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -100,6 +104,23 @@ export default function LoginScreen() {
       } else {
         await signInWithEmailAndPassword(auth, emailFromPhone, password);
       }
+
+      const u = auth.currentUser;
+      if (u) {
+        const normalizedPhone = phone.trim();
+        const displayName = isRegisterMode ? `${firstName.trim()} ${lastName.trim()}`.trim() : undefined;
+        await setDoc(
+          doc(db, 'users', u.uid),
+          {
+            uid: u.uid,
+            phone: normalizedPhone,
+            displayName: displayName || null,
+            updatedAt: serverTimestamp(),
+            ...(isRegisterMode ? { createdAt: serverTimestamp() } : {}),
+          },
+          { merge: true }
+        );
+      }
       router.replace('/(tabs)');
     } catch (error: any) {
       console.error('Auth error', error);
@@ -113,7 +134,7 @@ export default function LoginScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       <LinearGradient
-        colors={['#0f172a', '#1e3a5f', '#0f172a']}
+        colors={['#003c2c', Colors.light.togoGreen, Colors.light.togoYellow]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -125,7 +146,8 @@ export default function LoginScreen() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Math.max(0, insets.top + 44)}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -152,7 +174,7 @@ export default function LoginScreen() {
             ]}
           >
             <LinearGradient
-              colors={['#3b82f6', '#06b6d4']}
+              colors={[Colors.light.togoGreen, '#004b37']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.logoGradient}
@@ -281,7 +303,7 @@ export default function LoginScreen() {
               disabled={loading}
             >
               <LinearGradient
-                colors={loading ? ['#64748b', '#475569'] : ['#3b82f6', '#2563eb']}
+                colors={loading ? ['#64748b', '#475569'] : [Colors.light.togoGreen, '#004b37']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.submitGradient}
@@ -356,14 +378,14 @@ const styles = StyleSheet.create({
   circle1: {
     width: width * 0.7,
     height: width * 0.7,
-    backgroundColor: '#3b82f6',
+    backgroundColor: Colors.light.togoYellow,
     top: -width * 0.2,
     right: -width * 0.2,
   },
   circle2: {
     width: width * 0.5,
     height: width * 0.5,
-    backgroundColor: '#06b6d4',
+    backgroundColor: Colors.light.togoRed,
     bottom: height * 0.1,
     left: -width * 0.25,
   },
@@ -387,7 +409,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
-    shadowColor: '#3b82f6',
+    shadowColor: '#006a4e',
     shadowOpacity: 0.4,
     shadowRadius: 15,
     shadowOffset: { width: 0, height: 8 },
@@ -453,7 +475,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     overflow: 'hidden',
     marginTop: 8,
-    shadowColor: '#3b82f6',
+    shadowColor: '#006a4e',
     shadowOpacity: 0.4,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
@@ -499,7 +521,7 @@ const styles = StyleSheet.create({
   switchLink: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#3b82f6',
+    color: Colors.light.togoGreen,
   },
   securityNote: {
     flexDirection: 'row',

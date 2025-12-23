@@ -12,26 +12,77 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { Image as ExpoImage } from 'expo-image';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { auth, db } from '@/config/firebaseConfig';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { auth, db, storage } from '@/config/firebaseConfig';
+import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 
 type ReportType = 'person' | 'object';
+type ReportKind = 'lost' | 'found';
+type PickupPlaceType = 'police' | 'gendarmerie' | 'public_place' | 'other';
 
 export default function DeclareScreen() {
+  const insets = useSafeAreaInsets();
   const [type, setType] = useState<ReportType>('person');
+  const [kind, setKind] = useState<ReportKind>('lost');
+  const [pickupPlaceType, setPickupPlaceType] = useState<PickupPlaceType>('police');
+  const [pickupPlaceName, setPickupPlaceName] = useState('');
+  const [pickupAddress, setPickupAddress] = useState('');
+  const [pickupInstructions, setPickupInstructions] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [city, setCity] = useState('');
   const [locationDetail, setLocationDetail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
+  const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const pickImage = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission requise', "Autorisez l'accès à vos photos pour ajouter une image.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.85,
+    });
+
+    if (result.canceled) return;
+    setImageUri(result.assets[0]?.uri ?? null);
+  };
+
+  const uploadImageAsync = async (uri: string, reportId: string) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error('User not authenticated');
+
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    const objectRef = ref(storage, `reports/${reportId}/cover_${Date.now()}.jpg`);
+    await uploadBytes(objectRef, blob, { contentType: 'image/jpeg' });
+    return await getDownloadURL(objectRef);
+  };
 
   const handleSubmit = async () => {
     if (!title || !description || !city || !contactPhone) {
       Alert.alert('Champs manquants', 'Merci de remplir au moins le titre, la description, la ville et un numéro de contact.');
       return;
+    }
+
+    const isFoundObject = type === 'object' && kind === 'found';
+    if (isFoundObject) {
+      if (!pickupPlaceName.trim() || !pickupAddress.trim()) {
+        Alert.alert(
+          'Lieu de récupération',
+          'Merci de renseigner au moins le nom du lieu et l\'adresse pour récupérer l\'objet trouvé.'
+        );
+        return;
+      }
     }
 
     const user = auth.currentUser;
@@ -43,23 +94,43 @@ export default function DeclareScreen() {
     setLoading(true);
 
     try {
-      await addDoc(collection(db, 'reports'), {
+      const reportRef = await addDoc(collection(db, 'reports'), {
         type,
+        kind: type === 'object' ? kind : 'lost',
         title: title.trim(),
         description: description.trim(),
         city: city.trim(),
         locationDetail: locationDetail.trim(),
         contactPhone: contactPhone.trim(),
+        pickupPlaceType: type === 'object' && kind === 'found' ? pickupPlaceType : null,
+        pickupPlaceName: type === 'object' && kind === 'found' ? pickupPlaceName.trim() : null,
+        pickupAddress: type === 'object' && kind === 'found' ? pickupAddress.trim() : null,
+        pickupInstructions: type === 'object' && kind === 'found' ? pickupInstructions.trim() : null,
         status: 'open',
+        moderationStatus: 'pending',
+        moderatedAt: null,
+        moderatedBy: null,
+        rejectionReason: null,
         createdAt: serverTimestamp(),
         createdBy: user.uid,
       });
+
+      if (imageUri) {
+        const imageUrl = await uploadImageAsync(imageUri, reportRef.id);
+        await updateDoc(doc(db, 'reports', reportRef.id), { imageUrl });
+      }
 
       setTitle('');
       setDescription('');
       setCity('');
       setLocationDetail('');
       setContactPhone('');
+      setKind('lost');
+      setPickupPlaceType('police');
+      setPickupPlaceName('');
+      setPickupAddress('');
+      setPickupInstructions('');
+      setImageUri(null);
 
       Alert.alert('Déclaration envoyée', 'Votre alerte a été enregistrée. Elle apparaîtra bientôt dans la liste des pertes.');
     } catch (error: any) {
@@ -71,6 +142,7 @@ export default function DeclareScreen() {
   };
 
   const isPerson = type === 'person';
+  const isFoundObject = type === 'object' && kind === 'found';
 
   return (
     <View style={styles.screen}>
@@ -99,11 +171,15 @@ export default function DeclareScreen() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Math.max(0, insets.top + 44)}
       >
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: Math.max(140, insets.bottom + 140) },
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -113,7 +189,10 @@ export default function DeclareScreen() {
             <View style={styles.typeRow}>
               <TouchableOpacity
                 style={[styles.typeButton, isPerson && styles.typeButtonActive]}
-                onPress={() => setType('person')}
+                onPress={() => {
+                  setType('person');
+                  setKind('lost');
+                }}
                 activeOpacity={0.8}
               >
                 <LinearGradient
@@ -136,7 +215,10 @@ export default function DeclareScreen() {
 
               <TouchableOpacity
                 style={[styles.typeButton, !isPerson && styles.typeButtonActive]}
-                onPress={() => setType('object')}
+                onPress={() => {
+                  setType('object');
+                  setKind('lost');
+                }}
                 activeOpacity={0.8}
               >
                 <LinearGradient
@@ -154,14 +236,184 @@ export default function DeclareScreen() {
                 <ThemedText style={[styles.typeLabel, !isPerson && styles.typeLabelActive]}>
                   Objet
                 </ThemedText>
-                <ThemedText style={styles.typeDesc}>perdu</ThemedText>
+                <ThemedText style={styles.typeDesc}>perdu / trouvé</ThemedText>
               </TouchableOpacity>
             </View>
           </View>
 
+          {/* Objet: perdu vs trouvé */}
+          {type === 'object' ? (
+            <View style={styles.typeCard}>
+              <ThemedText style={styles.sectionTitle}>Objet</ThemedText>
+              <View style={styles.typeRow}>
+                <TouchableOpacity
+                  style={[styles.typeButton, kind === 'lost' && styles.typeButtonActive]}
+                  onPress={() => setKind('lost')}
+                  activeOpacity={0.8}
+                >
+                  <LinearGradient
+                    colors={kind === 'lost' ? ['#64748b', '#334155'] : ['#f1f5f9', '#f1f5f9']}
+                    style={styles.typeIconGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Ionicons name="alert" size={22} color={kind === 'lost' ? '#ffffff' : '#64748b'} />
+                  </LinearGradient>
+                  <ThemedText style={[styles.typeLabel, kind === 'lost' && styles.typeLabelActive]}>
+                    Perdu
+                  </ThemedText>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.typeButton, kind === 'found' && styles.typeButtonActive]}
+                  onPress={() => setKind('found')}
+                  activeOpacity={0.8}
+                >
+                  <LinearGradient
+                    colors={kind === 'found' ? ['#006a4e', '#004b37'] : ['#f1f5f9', '#f1f5f9']}
+                    style={styles.typeIconGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Ionicons name="checkmark" size={22} color={kind === 'found' ? '#ffffff' : '#64748b'} />
+                  </LinearGradient>
+                  <ThemedText style={[styles.typeLabel, kind === 'found' && styles.typeLabelActive]}>
+                    Trouvé
+                  </ThemedText>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : null}
+
           {/* Formulaire */}
           <View style={styles.formCard}>
             <ThemedText style={styles.sectionTitle}>Informations</ThemedText>
+
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Ionicons name="image-outline" size={16} color="#64748b" />
+                <ThemedText style={styles.label}>Image (optionnel)</ThemedText>
+              </View>
+              <View style={styles.imageRow}>
+                <TouchableOpacity
+                  style={styles.imagePickerButton}
+                  onPress={pickImage}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="images" size={18} color="#1d4ed8" />
+                  <ThemedText style={styles.imagePickerText}>
+                    {imageUri ? 'Changer' : 'Ajouter'}
+                  </ThemedText>
+                </TouchableOpacity>
+                {imageUri ? (
+                  <View style={styles.imagePreviewWrap}>
+                    <ExpoImage source={{ uri: imageUri }} style={styles.imagePreview} contentFit="cover" />
+                    <TouchableOpacity
+                      style={styles.removeImageButton}
+                      onPress={() => setImageUri(null)}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="close" size={14} color="#ffffff" />
+                    </TouchableOpacity>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+
+            {isFoundObject ? (
+              <View style={styles.formCard}>
+                <ThemedText style={styles.sectionTitle}>Récupération (lieu sécurisé)</ThemedText>
+
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <TouchableOpacity
+                    style={[styles.statusChip, pickupPlaceType === 'police' && styles.statusChipActive]}
+                    onPress={() => setPickupPlaceType('police')}
+                  >
+                    <ThemedText style={[styles.statusText, pickupPlaceType === 'police' && styles.statusTextActive]}>
+                      Police
+                    </ThemedText>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.statusChip, pickupPlaceType === 'gendarmerie' && styles.statusChipActive]}
+                    onPress={() => setPickupPlaceType('gendarmerie')}
+                  >
+                    <ThemedText style={[styles.statusText, pickupPlaceType === 'gendarmerie' && styles.statusTextActive]}>
+                      Gendarmerie
+                    </ThemedText>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                  <TouchableOpacity
+                    style={[styles.statusChip, pickupPlaceType === 'public_place' && styles.statusChipActive]}
+                    onPress={() => setPickupPlaceType('public_place')}
+                  >
+                    <ThemedText style={[styles.statusText, pickupPlaceType === 'public_place' && styles.statusTextActive]}>
+                      Lieu public
+                    </ThemedText>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.statusChip, pickupPlaceType === 'other' && styles.statusChipActive]}
+                    onPress={() => setPickupPlaceType('other')}
+                  >
+                    <ThemedText style={[styles.statusText, pickupPlaceType === 'other' && styles.statusTextActive]}>
+                      Autre
+                    </ThemedText>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={[styles.inputGroup, { marginTop: 12 }]}
+                >
+                  <View style={styles.labelRow}>
+                    <Ionicons name="business-outline" size={16} color="#64748b" />
+                    <ThemedText style={styles.label}>Nom du lieu</ThemedText>
+                  </View>
+                  <View style={styles.inputWrapper}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Ex: Commissariat Central"
+                      placeholderTextColor="#94a3b8"
+                      value={pickupPlaceName}
+                      onChangeText={setPickupPlaceName}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <View style={styles.labelRow}>
+                    <Ionicons name="map-outline" size={16} color="#64748b" />
+                    <ThemedText style={styles.label}>Adresse</ThemedText>
+                  </View>
+                  <View style={styles.inputWrapper}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Quartier, rue, repère"
+                      placeholderTextColor="#94a3b8"
+                      value={pickupAddress}
+                      onChangeText={setPickupAddress}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <View style={styles.labelRow}>
+                    <Ionicons name="information-circle-outline" size={16} color="#64748b" />
+                    <ThemedText style={styles.label}>Instructions (optionnel)</ThemedText>
+                  </View>
+                  <View style={[styles.inputWrapper, styles.textAreaWrapper]}>
+                    <TextInput
+                      style={[styles.input, styles.textArea]}
+                      placeholder="Heures d'ouverture, pièce à présenter…"
+                      placeholderTextColor="#94a3b8"
+                      multiline
+                      numberOfLines={3}
+                      value={pickupInstructions}
+                      onChangeText={setPickupInstructions}
+                    />
+                  </View>
+                </View>
+              </View>
+            ) : null}
 
             {/* Titre */}
             <View style={styles.inputGroup}>
@@ -203,7 +455,9 @@ export default function DeclareScreen() {
             <View style={styles.inputGroup}>
               <View style={styles.labelRow}>
                 <Ionicons name="navigate-outline" size={16} color="#64748b" />
-                <ThemedText style={styles.label}>Dernier lieu vu / Lieu de perte</ThemedText>
+                <ThemedText style={styles.label}>
+                  {isFoundObject ? 'Lieu où l\'objet a été trouvé' : 'Dernier lieu vu / Lieu de perte'}
+                </ThemedText>
               </View>
               <View style={styles.inputWrapper}>
                 <TextInput
@@ -424,8 +678,75 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
+  statusChip: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusChipActive: {
+    borderColor: '#006a4e',
+    backgroundColor: 'rgba(0, 106, 78, 0.10)',
+  },
+  statusText: {
+    fontWeight: '800',
+    color: '#0f172a',
+    fontSize: 13,
+  },
+  statusTextActive: {
+    color: '#006a4e',
+  },
   inputGroup: {
     marginBottom: 16,
+  },
+  imageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  imagePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  imagePickerText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1d4ed8',
+  },
+  imagePreviewWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 14,
+    overflow: 'hidden',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  imagePreview: {
+    width: '100%',
+    height: '100%',
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   labelRow: {
     flexDirection: 'row',

@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/themed-text';
+import { Colors } from '@/constants/theme';
 
 const { width, height } = Dimensions.get('window');
 const isSmallDevice = height < 700;
@@ -59,15 +60,15 @@ export default function WelcomeScreen() {
 
   const features = [
     { icon: 'shield-checkmark', label: 'Sécurisé', color: '#10b981' },
-    { icon: 'people', label: 'Communauté', color: '#3b82f6' },
-    { icon: 'business', label: 'Autorités', color: '#f59e0b' },
+    { icon: 'people', label: 'Communauté', color: Colors.light.togoGreen },
+    { icon: 'business', label: 'Autorités', color: Colors.light.togoYellow },
   ];
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       <LinearGradient
-        colors={['#0f172a', '#1e3a5f', '#0f172a']}
+        colors={['#003c2c', Colors.light.togoGreen, Colors.light.togoYellow]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -100,7 +101,7 @@ export default function WelcomeScreen() {
           ]}
         >
           <LinearGradient
-            colors={['#3b82f6', '#06b6d4']}
+            colors={[Colors.light.togoGreen, '#004b37']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.logoGradient}
@@ -199,7 +200,7 @@ export default function WelcomeScreen() {
             onPress={() => router.push('/login?mode=register')}
           >
             <LinearGradient
-              colors={['#3b82f6', '#2563eb']}
+              colors={[Colors.light.togoGreen, '#004b37']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.buttonGradient}
@@ -216,7 +217,7 @@ export default function WelcomeScreen() {
             activeOpacity={0.85}
             onPress={() => router.push('/login?mode=login')}
           >
-            <Ionicons name="log-in-outline" size={20} color="#3b82f6" />
+            <Ionicons name="log-in-outline" size={20} color={Colors.light.togoGreen} />
             <ThemedText style={styles.secondaryButtonText}>
               J'ai déjà un compte
             </ThemedText>
@@ -254,14 +255,14 @@ const styles = StyleSheet.create({
   circle1: {
     width: width * 0.8,
     height: width * 0.8,
-    backgroundColor: '#3b82f6',
+    backgroundColor: Colors.light.togoYellow,
     top: -width * 0.3,
     right: -width * 0.3,
   },
   circle2: {
     width: width * 0.6,
     height: width * 0.6,
-    backgroundColor: '#06b6d4',
+    backgroundColor: Colors.light.togoRed,
     bottom: height * 0.15,
     left: -width * 0.3,
   },
@@ -282,11 +283,11 @@ const styles = StyleSheet.create({
     borderRadius: isSmallDevice ? 36 : 44,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#3b82f6',
+    shadowColor: '#006a4e',
     shadowOpacity: 0.4,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 10 },
-    elevation: 15,
+    elevation: 18,
   },
   headerContainer: {
     alignItems: 'center',
@@ -362,7 +363,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#3b82f6',
+    backgroundColor: Colors.light.togoGreen,
   },
   bulletText: {
     fontSize: isSmallDevice ? 13 : 14,
@@ -376,7 +377,7 @@ const styles = StyleSheet.create({
   primaryButton: {
     borderRadius: 14,
     overflow: 'hidden',
-    shadowColor: '#3b82f6',
+    shadowColor: '#006a4e',
     shadowOpacity: 0.4,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
@@ -401,12 +402,12 @@ const styles = StyleSheet.create({
     paddingVertical: isSmallDevice ? 14 : 16,
     borderRadius: 14,
     borderWidth: 2,
-    borderColor: 'rgba(59, 130, 246, 0.5)',
+    borderColor: 'rgba(0, 106, 78, 0.55)',
     backgroundColor: 'rgba(255,255,255,0.05)',
     gap: 10,
   },
   secondaryButtonText: {
-    color: '#93c5fd',
+    color: 'rgba(255, 206, 0, 0.95)',
     fontSize: isSmallDevice ? 15 : 16,
     fontWeight: '600',
   },

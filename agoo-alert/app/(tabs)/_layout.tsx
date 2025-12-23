@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { HapticTab } from '@/components/haptic-tab';
+import { Colors } from '@/constants/theme';
 
 export default function TabLayout() {
   return (
@@ -11,7 +12,7 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarActiveTintColor: '#3b82f6',
+        tabBarActiveTintColor: Colors.light.togoGreen,
         tabBarInactiveTintColor: '#94a3b8',
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabBarLabel,
@@ -34,6 +35,18 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.iconContainer, focused && styles.iconContainerActive]}>
               <Ionicons name={focused ? 'add-circle' : 'add-circle-outline'} size={24} color={color} />
+            </View>
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="conversations"
+        options={{
+          title: 'Messages',
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconContainer, focused && styles.iconContainerActive]}>
+              <Ionicons name={focused ? 'chatbubbles' : 'chatbubbles-outline'} size={22} color={color} />
             </View>
           ),
         }}
@@ -73,6 +86,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   iconContainerActive: {
-    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+    backgroundColor: 'rgba(0, 106, 78, 0.12)',
   },
 });

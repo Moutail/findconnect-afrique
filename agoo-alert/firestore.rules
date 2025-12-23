@@ -1,0 +1,128 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isModerator() {
+      return isSignedIn() && request.auth.token.moderator == true;
+    }
+
+    function isParticipant() {
+      return isSignedIn() && resource.data.participants.hasAny([request.auth.uid]);
+    }
+
+    match /reports/{reportId} {
+      function isOwner() {
+        return isSignedIn() && resource.data.createdBy == request.auth.uid;
+      }
+
+      function isApproved() {
+        return resource.data.moderationStatus == 'approved';
+      }
+
+      allow read: if isModerator() || isApproved() || isOwner();
+
+      allow create: if isSignedIn()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.moderationStatus == 'pending'
+        && request.resource.data.moderatedAt == null
+        && request.resource.data.moderatedBy == null;
+
+      allow update: if isModerator() || (
+        isOwner()
+        && resource.data.moderationStatus == 'pending'
+        && request.resource.data.moderationStatus == 'pending'
+        && request.resource.data.createdBy == resource.data.createdBy
+      );
+
+      allow delete: if isModerator() || isOwner();
+
+      match /messages/{messageId} {
+        function canAccessChat() {
+          return isModerator() || (
+            isSignedIn() && get(/databases/$(database)/documents/reports/$(reportId)).data.createdBy == request.auth.uid
+          );
+        }
+
+        allow read: if canAccessChat() || (isSignedIn() && resource.data.senderId == request.auth.uid);
+
+        allow create: if isSignedIn()
+          && request.resource.data.senderId == request.auth.uid
+          && canAccessChat();
+
+        allow update, delete: if isModerator() || (isSignedIn() && resource.data.senderId == request.auth.uid);
+      }
+
+      match /chatRequests/{requesterId} {
+        function reportOwnerId() {
+          return get(/databases/$(database)/documents/reports/$(reportId)).data.createdBy;
+        }
+
+        function isReportOwner() {
+          return isSignedIn() && reportOwnerId() == request.auth.uid;
+        }
+
+        function isRequester() {
+          return isSignedIn() && requesterId == request.auth.uid;
+        }
+
+        allow read: if isModerator() || isReportOwner() || isRequester();
+
+        allow create: if isRequester()
+          && request.resource.data.requesterId == request.auth.uid
+          && request.resource.data.ownerId == reportOwnerId()
+          && request.resource.data.reportId == reportId
+          && request.resource.data.status == 'pending';
+
+        allow update: if isModerator() || (
+          isReportOwner()
+          && resource.data.status == 'pending'
+          && (request.resource.data.status == 'accepted' || request.resource.data.status == 'rejected')
+        );
+
+        allow delete: if isModerator() || isReportOwner() || isRequester();
+      }
+    }
+
+    match /conversations/{conversationId} {
+      allow read: if isModerator() || isParticipant();
+
+      allow create: if isSignedIn()
+        && request.resource.data.participants.size() == 2
+        && request.resource.data.participants.hasAny([request.auth.uid]);
+
+      allow update: if isModerator() || isParticipant();
+
+      allow delete: if isModerator();
+
+      match /messages/{messageId} {
+        allow read: if isModerator() || (
+          isSignedIn() && get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants.hasAny([request.auth.uid])
+        );
+
+        allow create: if isSignedIn()
+          && request.resource.data.senderId == request.auth.uid
+          && get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants.hasAny([request.auth.uid]);
+
+        allow update, delete: if isModerator() || (isSignedIn() && resource.data.senderId == request.auth.uid);
+      }
+    }
+
+    match /users/{userId} {
+      allow read: if isModerator() || (isSignedIn() && userId == request.auth.uid);
+
+      allow create: if isSignedIn()
+        && userId == request.auth.uid
+        && request.resource.data.uid == request.auth.uid;
+
+      allow update: if isSignedIn()
+        && userId == request.auth.uid
+        && request.resource.data.uid == request.auth.uid;
+
+      allow delete: if isModerator();
+    }
+  }
+}

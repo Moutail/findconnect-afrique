@@ -13,7 +13,7 @@ const firebaseConfig = {
   authDomain: "agoo-alert.firebaseapp.com",
   projectId: "agoo-alert",
   // Vérifie dans la console Firebase > Storage > Emplacement : le bucket doit être de la forme "<project-id>.appspot.com"
-  storageBucket: "agoo-alert.appspot.com",
+  storageBucket: "agoo-alert.firebasestorage.app",
   messagingSenderId: "331787193220",
   appId: "1:331787193220:web:9289d6640c2ac21965ebd1"
 };

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   View,
@@ -10,12 +11,15 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Image as ExpoImage } from 'expo-image';
 
 import { ThemedText } from '@/components/themed-text';
-import { db } from '@/config/firebaseConfig';
-import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '@/config/firebaseConfig';
+import { Colors } from '@/constants/theme';
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 
 type ReportDetail = {
+  kind?: 'lost' | 'found';
   id: string;
   type: 'person' | 'object';
   title: string;
@@ -23,7 +27,13 @@ type ReportDetail = {
   city?: string;
   locationDetail?: string;
   contactPhone?: string;
+  pickupPlaceType?: 'police' | 'gendarmerie' | 'public_place' | 'other';
+  pickupPlaceName?: string;
+  pickupAddress?: string;
+  pickupInstructions?: string;
   status?: string;
+  imageUrl?: string;
+  createdBy?: string;
 };
 
 export default function ReportDetailScreen() {
@@ -32,6 +42,7 @@ export default function ReportDetailScreen() {
   const [report, setReport] = useState<ReportDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [requestingChat, setRequestingChat] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -50,13 +61,20 @@ export default function ReportDetailScreen() {
           const d = snap.data() as any;
           setReport({
             id: snap.id,
+            kind: d.kind === 'found' ? 'found' : 'lost',
             type: d.type === 'object' ? 'object' : 'person',
             title: d.title || '',
             description: d.description,
             city: d.city,
             locationDetail: d.locationDetail,
             contactPhone: d.contactPhone,
+            pickupPlaceType: d.pickupPlaceType,
+            pickupPlaceName: d.pickupPlaceName,
+            pickupAddress: d.pickupAddress,
+            pickupInstructions: d.pickupInstructions,
             status: d.status || 'open',
+            imageUrl: d.imageUrl,
+            createdBy: d.createdBy,
           });
         }
       } catch (e) {
@@ -71,11 +89,58 @@ export default function ReportDetailScreen() {
   }, [id]);
 
   const isPerson = report?.type === 'person';
+  const isOwner = !!report?.createdBy && report.createdBy === auth.currentUser?.uid;
+  const isFoundObject = report?.type === 'object' && report?.kind === 'found';
   const statusLabel = report?.status === 'resolved' ? 'Résolu' : 'En cours';
   const statusColor = report?.status === 'resolved' ? '#16a34a' : '#f59e0b';
   const typeGradient: [string, string] = isPerson
-    ? ['#3b82f6', '#1d4ed8']
+    ? [Colors.light.togoGreen, '#004b37']
     : ['#64748b', '#334155'];
+
+  const requestChat = async () => {
+    if (!report?.id) return;
+    const user = auth.currentUser;
+    if (!user) {
+      Alert.alert('Connexion requise', 'Veuillez vous connecter pour demander un chat.');
+      return;
+    }
+    if (isOwner) return;
+
+    if (!report.createdBy) {
+      Alert.alert('Erreur', "Impossible d'identifier le déclarant pour cette publication.");
+      return;
+    }
+
+    setRequestingChat(true);
+
+    try {
+      await setDoc(
+        doc(db, 'reports', report.id, 'chatRequests', user.uid),
+        {
+          reportId: report.id,
+          ownerId: report.createdBy,
+          requesterId: user.uid,
+          status: 'pending',
+          createdAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      Alert.alert('Demande envoyée', 'Le déclarant doit accepter avant de discuter.');
+    } catch (e: any) {
+      console.error('Failed to request chat', e);
+      Alert.alert('Erreur', e?.message ?? "Impossible d'envoyer la demande. Vérifie ta connexion et les règles Firestore.");
+    } finally {
+      setRequestingChat(false);
+    }
+  };
+
+  const openConversation = () => {
+    if (!report?.id) return;
+    const user = auth.currentUser;
+    if (!user) return;
+    const conversationId = `${report.id}_${user.uid}`;
+    router.push({ pathname: '/conversation' as any, params: { id: conversationId } });
+  };
 
   const handleCall = () => {
     if (report?.contactPhone) {
@@ -106,7 +171,7 @@ export default function ReportDetailScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#3b82f6" />
+          <ActivityIndicator size="large" color={Colors.light.togoGreen} />
           <ThemedText style={styles.loadingText}>Chargement de l'alerte…</ThemedText>
         </View>
       ) : error ? (
@@ -143,7 +208,7 @@ export default function ReportDetailScreen() {
               </LinearGradient>
               <View style={styles.typeInfo}>
                 <ThemedText style={styles.typeLabel}>
-                  {isPerson ? 'Personne disparue' : 'Objet perdu'}
+                  {isPerson ? 'Personne disparue' : isFoundObject ? 'Objet trouvé' : 'Objet perdu'}
                 </ThemedText>
                 <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
                   <View style={styles.statusDot} />
@@ -155,11 +220,22 @@ export default function ReportDetailScreen() {
             {/* Titre */}
             <ThemedText style={styles.mainTitle}>{report.title}</ThemedText>
 
+            {report.imageUrl ? (
+              <View style={styles.imageCard}>
+                <ExpoImage
+                  source={{ uri: report.imageUrl }}
+                  style={styles.coverImage}
+                  contentFit="cover"
+                  transition={150}
+                />
+              </View>
+            ) : null}
+
             {/* Localisation */}
             {(report.city || report.locationDetail) && (
               <View style={styles.infoCard}>
                 <View style={styles.infoIconCircle}>
-                  <Ionicons name="location" size={18} color="#3b82f6" />
+                  <Ionicons name="location" size={18} color={Colors.light.togoGreen} />
                 </View>
                 <View style={styles.infoContent}>
                   <ThemedText style={styles.infoLabel}>Localisation</ThemedText>
@@ -183,11 +259,48 @@ export default function ReportDetailScreen() {
                 <ThemedText style={styles.descriptionText}>{report.description}</ThemedText>
               </View>
             )}
+
+            {isFoundObject ? (
+              <View style={styles.pickupCard}>
+                <View style={styles.descriptionHeader}>
+                  <Ionicons name="shield-checkmark" size={18} color={Colors.light.togoGreen} />
+                  <ThemedText style={styles.descriptionLabel}>Récupération (lieu sécurisé)</ThemedText>
+                </View>
+                <ThemedText style={styles.descriptionText}>
+                  Type: {report.pickupPlaceType || '-'}
+                </ThemedText>
+                {report.pickupPlaceName ? (
+                  <ThemedText style={styles.descriptionText}>Lieu: {report.pickupPlaceName}</ThemedText>
+                ) : null}
+                {report.pickupAddress ? (
+                  <ThemedText style={styles.descriptionText}>Adresse: {report.pickupAddress}</ThemedText>
+                ) : null}
+                {report.pickupInstructions ? (
+                  <ThemedText style={styles.descriptionText}>Infos: {report.pickupInstructions}</ThemedText>
+                ) : null}
+              </View>
+            ) : null}
           </View>
 
           {/* Actions */}
           <View style={styles.actionsCard}>
             <ThemedText style={styles.actionsTitle}>Actions</ThemedText>
+
+            {isOwner && (
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => router.push({ pathname: '/report-edit' as any, params: { id: report.id } })}
+              >
+                <View style={[styles.actionIconCircle, { backgroundColor: '#ede9fe' }]}>
+                  <Ionicons name="create" size={20} color="#7c3aed" />
+                </View>
+                <View style={styles.actionContent}>
+                  <ThemedText style={styles.actionLabel}>Modifier</ThemedText>
+                  <ThemedText style={styles.actionValue}>Corriger ou compléter cette publication</ThemedText>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+              </TouchableOpacity>
+            )}
 
             {/* Appeler */}
             {report.contactPhone && (
@@ -204,19 +317,45 @@ export default function ReportDetailScreen() {
             )}
 
             {/* Chat */}
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => router.push({ pathname: '/chat', params: { reportId: report.id } })}
-            >
-              <View style={[styles.actionIconCircle, { backgroundColor: '#dbeafe' }]}>
-                <Ionicons name="chatbubbles" size={20} color="#3b82f6" />
-              </View>
-              <View style={styles.actionContent}>
-                <ThemedText style={styles.actionLabel}>Chat sécurisé</ThemedText>
-                <ThemedText style={styles.actionValue}>Échanger avec le déclarant</ThemedText>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
-            </TouchableOpacity>
+            {isOwner ? (
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => router.push({ pathname: '/chat-requests' as any })}
+              >
+                <View style={[styles.actionIconCircle, { backgroundColor: 'rgba(0,106,78,0.12)' }]}>
+                  <Ionicons name="chatbubbles" size={20} color={Colors.light.togoGreen} />
+                </View>
+                <View style={styles.actionContent}>
+                  <ThemedText style={styles.actionLabel}>Demandes de chat</ThemedText>
+                  <ThemedText style={styles.actionValue}>Accepter / refuser avant de discuter</ThemedText>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+              </TouchableOpacity>
+            ) : (
+              <>
+                <TouchableOpacity style={styles.actionButton} onPress={requestChat}>
+                  <View style={[styles.actionIconCircle, { backgroundColor: 'rgba(255,206,0,0.22)' }]}>
+                    <Ionicons name="chatbubble-ellipses" size={20} color="#92400e" />
+                  </View>
+                  <View style={styles.actionContent}>
+                    <ThemedText style={styles.actionLabel}>Demander un chat</ThemedText>
+                    <ThemedText style={styles.actionValue}>Le déclarant doit accepter</ThemedText>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.actionButton} onPress={openConversation}>
+                  <View style={[styles.actionIconCircle, { backgroundColor: 'rgba(0,106,78,0.12)' }]}>
+                    <Ionicons name="chatbubbles" size={20} color={Colors.light.togoGreen} />
+                  </View>
+                  <View style={styles.actionContent}>
+                    <ThemedText style={styles.actionLabel}>Ouvrir la conversation</ThemedText>
+                    <ThemedText style={styles.actionValue}>Si la demande a été acceptée</ThemedText>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+                </TouchableOpacity>
+              </>
+            )}
           </View>
 
           {/* Message de sécurité */}
@@ -250,10 +389,30 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8fafc',
   },
+  pickupCard: {
+    marginTop: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
+    padding: 12,
+  },
+  imageCard: {
+    marginTop: 12,
+    borderRadius: 18,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#f1f5f9',
+  },
+  coverImage: {
+    width: '100%',
+    height: 220,
+  },
   headerGradient: {
     paddingTop: 50,
     paddingBottom: 20,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     overflow: 'hidden',
   },
   decorCircle1: {
@@ -263,7 +422,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    backgroundColor: 'rgba(0, 106, 78, 0.15)',
   },
   decorCircle2: {
     position: 'absolute',
@@ -272,7 +431,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    backgroundColor: 'rgba(0, 106, 78, 0.10)',
   },
   headerContent: {
     flexDirection: 'row',
