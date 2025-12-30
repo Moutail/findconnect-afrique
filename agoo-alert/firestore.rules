@@ -10,6 +10,10 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.moderator == true;
     }
 
+    function isVerified() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.verificationStatus == 'approved';
+    }
+
     function isParticipant() {
       return isSignedIn() && resource.data.participants.hasAny([request.auth.uid]);
     }
@@ -26,6 +30,7 @@ service cloud.firestore {
       allow read: if isModerator() || isApproved() || isOwner();
 
       allow create: if isSignedIn()
+        && isVerified()
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.moderationStatus == 'pending'
         && request.resource.data.moderatedAt == null
@@ -118,9 +123,22 @@ service cloud.firestore {
         && userId == request.auth.uid
         && request.resource.data.uid == request.auth.uid;
 
-      allow update: if isSignedIn()
+      allow update: if isModerator() || (
+        isSignedIn()
         && userId == request.auth.uid
-        && request.resource.data.uid == request.auth.uid;
+        && request.resource.data.uid == request.auth.uid
+      );
+
+      allow delete: if isModerator();
+    }
+
+    match /verificationRequests/{requestId} {
+      allow read: if isModerator() || (isSignedIn() && resource.data.userId == request.auth.uid);
+
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+
+      allow update: if isModerator();
 
       allow delete: if isModerator();
     }

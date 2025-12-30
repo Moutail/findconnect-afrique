@@ -35,6 +35,7 @@ export default function LoginScreen() {
   const [phone, setPhone] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [pseudonym, setPseudonyme] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isRegisterMode, setIsRegisterMode] = useState(params.mode === 'register');
@@ -85,6 +86,14 @@ export default function LoginScreen() {
         Alert.alert('Erreur', 'Veuillez renseigner votre nom et prénom.');
         return;
       }
+      if (!pseudonym) {
+        Alert.alert('Erreur', 'Veuillez choisir un pseudonyme.');
+        return;
+      }
+      if (!/^[a-zA-Z0-9_]{3,20}$/.test(pseudonym)) {
+        Alert.alert('Erreur', 'Le pseudonyme doit contenir 3-20 caractères (lettres, chiffres, underscore).');
+        return;
+      }
       if (password.length < 6) {
         Alert.alert('Erreur', 'Le mot de passe doit contenir au moins 6 caractères.');
         return;
@@ -108,18 +117,50 @@ export default function LoginScreen() {
       const u = auth.currentUser;
       if (u) {
         const normalizedPhone = phone.trim();
-        const displayName = isRegisterMode ? `${firstName.trim()} ${lastName.trim()}`.trim() : undefined;
-        await setDoc(
-          doc(db, 'users', u.uid),
-          {
-            uid: u.uid,
-            phone: normalizedPhone,
-            displayName: displayName || null,
-            updatedAt: serverTimestamp(),
-            ...(isRegisterMode ? { createdAt: serverTimestamp() } : {}),
-          },
-          { merge: true }
-        );
+
+        if (isRegisterMode) {
+          // Mode inscription : créer avec tous les champs
+          const displayName = `${firstName.trim()} ${lastName.trim()}`.trim();
+          await setDoc(
+            doc(db, 'users', u.uid),
+            {
+              uid: u.uid,
+              phone: normalizedPhone,
+              displayName: displayName,
+              firstName: firstName.trim(),
+              lastName: lastName.trim(),
+              pseudonym: pseudonym.trim(),
+              verificationStatus: 'unverified',
+              verificationSubmittedAt: null,
+              verificationCompletedAt: null,
+              verificationCompletedBy: null,
+              selfieUrl: null,
+              idCardUrl: null,
+              ocrData: null,
+              faceDetection: null,
+              rejectionReason: null,
+              rejectionCount: 0,
+              canPost: false,
+              blockedAt: null,
+              blockedBy: null,
+              blockReason: null,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+        } else {
+          // Mode connexion : mettre à jour seulement certains champs
+          await setDoc(
+            doc(db, 'users', u.uid),
+            {
+              uid: u.uid,
+              phone: normalizedPhone,
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+        }
       }
       router.replace('/(tabs)');
     } catch (error: any) {
@@ -251,6 +292,24 @@ export default function LoginScreen() {
                       />
                     </View>
                   </View>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <ThemedText style={styles.label}>Pseudonyme (nom public)</ThemedText>
+                  <View style={styles.inputWrapper}>
+                    <Ionicons name="at-outline" size={20} color="#64748b" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="pseudo_utilisateur"
+                      placeholderTextColor="#94a3b8"
+                      value={pseudonym}
+                      onChangeText={setPseudonyme}
+                      autoCapitalize="none"
+                    />
+                  </View>
+                  <ThemedText style={[styles.label, { fontSize: 11, color: '#64748b', marginTop: 4 }]}>
+                    Ce nom sera visible publiquement dans l'app
+                  </ThemedText>
                 </View>
               </>
             )}

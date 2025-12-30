@@ -20,6 +20,8 @@ import { ThemedText } from '@/components/themed-text';
 import { auth, db, storage } from '@/config/firebaseConfig';
 import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { checkVerificationStatus } from '@/utils/verificationUtils';
+import { useRouter } from 'expo-router';
 
 type ReportType = 'person' | 'object';
 type ReportKind = 'lost' | 'found';
@@ -27,6 +29,7 @@ type PickupPlaceType = 'police' | 'gendarmerie' | 'public_place' | 'other';
 
 export default function DeclareScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [type, setType] = useState<ReportType>('person');
   const [kind, setKind] = useState<ReportKind>('lost');
   const [pickupPlaceType, setPickupPlaceType] = useState<PickupPlaceType>('police');
@@ -69,6 +72,24 @@ export default function DeclareScreen() {
   };
 
   const handleSubmit = async () => {
+    // VÉRIFICATION D'IDENTITÉ EN PREMIER
+    const verificationStatus = await checkVerificationStatus();
+
+    if (!verificationStatus.isVerified) {
+      Alert.alert(
+        'Vérification requise',
+        'Vous devez vérifier votre identité avant de publier une alerte.',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          {
+            text: 'Vérifier maintenant',
+            onPress: () => router.push('/identity-verification' as any)
+          }
+        ]
+      );
+      return;
+    }
+
     if (!title || !description || !city || !contactPhone) {
       Alert.alert('Champs manquants', 'Merci de remplir au moins le titre, la description, la ville et un numéro de contact.');
       return;
