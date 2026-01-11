@@ -5,9 +5,10 @@ import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { auth, db } from '@/config/firebaseConfig';
-import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { collection, doc, onSnapshot, orderBy, query, updateDoc, where } from 'firebase/firestore';
 import { Colors } from '@/constants/theme';
 import { onAuthStateChanged } from 'firebase/auth';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type ConversationRow = {
   id: string;
@@ -21,6 +22,7 @@ type ConversationRow = {
 
 export default function ConversationsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<ConversationRow[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +35,12 @@ export default function ConversationsScreen() {
   }, []);
 
   useEffect(() => {
+    if (!uid) return;
+    // Quand l'utilisateur ouvre l'écran Messages, on considère qu'il a vu les notifications.
+    updateDoc(doc(db, 'users', uid), { unreadMessagesCount: 0 }).catch(() => undefined);
+  }, [uid]);
+
+  useEffect(() => {
     if (!uid) {
       setLoading(false);
       setRows([]);
@@ -40,6 +48,8 @@ export default function ConversationsScreen() {
     }
 
     setLoading(true);
+
+    let unsubFallback: null | (() => void) = null;
 
     const mapSnap = (snap: any) => {
       setRows(
@@ -78,9 +88,10 @@ export default function ConversationsScreen() {
         setError((e as any)?.message ?? 'Impossible de charger les conversations.');
         setLoading(true);
 
-        const unsubFallback = onSnapshot(
+        unsubFallback = onSnapshot(
           qNoOrder,
           (snap) => {
+            setError(null);
             mapSnap(snap);
           },
           (e2) => {
@@ -89,12 +100,13 @@ export default function ConversationsScreen() {
             setLoading(false);
           }
         );
-
-        return () => unsubFallback();
       }
     );
 
-    return () => unsubPrimary();
+    return () => {
+      unsubPrimary();
+      if (unsubFallback) unsubFallback();
+    };
   }, [uid]);
 
   const sorted = useMemo(() => {
@@ -122,8 +134,14 @@ export default function ConversationsScreen() {
       </View>
 
       {sorted.length === 0 ? (
-        <View style={styles.center}>
-          <ThemedText style={styles.muted}>Aucune conversation.</ThemedText>
+        <View style={[styles.center, { paddingBottom: Math.max(120, insets.bottom + 120) }]}>
+          <View style={styles.emptyIconCircle}>
+            <Ionicons name="chatbubbles" size={28} color={Colors.light.togoGreen} />
+          </View>
+          <ThemedText style={styles.emptyTitle}>Aucune conversation</ThemedText>
+          <ThemedText style={styles.emptyText}>
+            Les discussions apparaîtront ici après acceptation d'une demande.
+          </ThemedText>
         </View>
       ) : (
         <FlatList
@@ -168,6 +186,17 @@ const styles = StyleSheet.create({
   muted: { opacity: 0.7 },
   errorText: { marginTop: 6, color: '#991b1b', fontSize: 12, fontWeight: '700' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10 },
+  emptyIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(0, 106, 78, 0.10)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  emptyTitle: { fontSize: 18, fontWeight: '900', color: '#0f172a' },
+  emptyText: { textAlign: 'center', color: '#64748b', paddingHorizontal: 28, lineHeight: 20 },
   row: {
     backgroundColor: '#ffffff',
     borderWidth: 1,

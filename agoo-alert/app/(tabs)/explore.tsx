@@ -15,8 +15,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Image as ExpoImage } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
+import { Colors } from '@/constants/theme';
 import { auth, db, storage } from '@/config/firebaseConfig';
 import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
@@ -153,7 +155,21 @@ export default function DeclareScreen() {
       setPickupInstructions('');
       setImageUri(null);
 
-      Alert.alert('Déclaration envoyée', 'Votre alerte a été enregistrée. Elle apparaîtra bientôt dans la liste des pertes.');
+      Alert.alert(
+        'Déclaration envoyée',
+        "Votre alerte a été enregistrée. Elle apparaîtra bientôt dans la liste.",
+        [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/(tabs)' as any),
+          },
+        ]
+      );
+
+      // Fallback: si l'alerte est bloquée/ignorée, on redirige quand même.
+      setTimeout(() => {
+        router.replace('/(tabs)' as any);
+      }, 800);
     } catch (error: any) {
       console.error('Error creating report', error);
       Alert.alert('Erreur', "Impossible d'enregistrer la déclaration. Veuillez réessayer plus tard.");
@@ -169,7 +185,7 @@ export default function DeclareScreen() {
     <View style={styles.screen}>
       {/* Header avec dégradé */}
       <LinearGradient
-        colors={['#0f172a', '#1e3a5f', '#0f172a']}
+        colors={['#003c2c', Colors.light.togoGreen, Colors.light.togoYellow]}
         style={styles.headerGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -217,7 +233,7 @@ export default function DeclareScreen() {
                 activeOpacity={0.8}
               >
                 <LinearGradient
-                  colors={isPerson ? ['#3b82f6', '#1d4ed8'] : ['#f1f5f9', '#f1f5f9']}
+                  colors={isPerson ? [Colors.light.togoGreen, '#004b37'] : ['#f1f5f9', '#f1f5f9']}
                   style={styles.typeIconGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
@@ -321,7 +337,7 @@ export default function DeclareScreen() {
                   onPress={pickImage}
                   activeOpacity={0.85}
                 >
-                  <Ionicons name="images" size={18} color="#1d4ed8" />
+                  <Ionicons name="images" size={18} color={Colors.light.togoGreen} />
                   <ThemedText style={styles.imagePickerText}>
                     {imageUri ? 'Changer' : 'Ajouter'}
                   </ThemedText>
@@ -541,7 +557,7 @@ export default function DeclareScreen() {
             disabled={loading}
           >
             <LinearGradient
-              colors={loading ? ['#94a3b8', '#64748b'] : ['#3b82f6', '#1d4ed8']}
+              colors={loading ? ['#94a3b8', '#64748b'] : [Colors.light.togoGreen, '#004b37']}
               style={styles.submitGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -562,7 +578,7 @@ export default function DeclareScreen() {
 
           {/* Message d'aide */}
           <View style={styles.helpCard}>
-            <Ionicons name="information-circle" size={20} color="#3b82f6" />
+            <Ionicons name="information-circle" size={20} color={Colors.light.togoGreen} />
             <ThemedText style={styles.helpText}>
               Merci de rester précis et honnête. Les fausses déclarations pourront être signalées et
               bloquées par les autorités.
@@ -592,7 +608,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    backgroundColor: 'rgba(255, 206, 0, 0.18)',
   },
   decorCircle2: {
     position: 'absolute',
@@ -601,7 +617,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    backgroundColor: 'rgba(210, 16, 52, 0.12)',
   },
   headerContent: {
     flexDirection: 'row',
@@ -613,7 +629,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 14,
-    backgroundColor: 'rgba(59, 130, 246, 0.3)',
+    backgroundColor: 'rgba(0, 106, 78, 0.22)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -665,8 +681,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   typeButtonActive: {
-    borderColor: '#3b82f6',
-    backgroundColor: '#eff6ff',
+    borderColor: Colors.light.togoGreen,
+    backgroundColor: 'rgba(0, 106, 78, 0.08)',
   },
   typeIconGradient: {
     width: 56,
@@ -735,15 +751,15 @@ const styles = StyleSheet.create({
     gap: 8,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#dbeafe',
-    backgroundColor: '#eff6ff',
+    borderColor: 'rgba(0, 106, 78, 0.22)',
+    backgroundColor: 'rgba(0, 106, 78, 0.08)',
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   imagePickerText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#1d4ed8',
+    color: Colors.light.togoGreen,
   },
   imagePreviewWrap: {
     width: 64,
@@ -802,11 +818,11 @@ const styles = StyleSheet.create({
   submitButton: {
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#3b82f6',
+    shadowColor: '#006a4e',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 6,
+    elevation: 8,
   },
   submitButtonDisabled: {
     shadowOpacity: 0.1,
@@ -831,13 +847,13 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 10,
     padding: 14,
-    backgroundColor: '#eff6ff',
+    backgroundColor: 'rgba(255, 206, 0, 0.14)',
     borderRadius: 14,
   },
   helpText: {
     flex: 1,
     fontSize: 13,
-    color: '#1e40af',
+    color: '#0b3d2e',
     lineHeight: 18,
   },
 });

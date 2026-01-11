@@ -362,35 +362,33 @@ export default function HomeScreen() {
           </Pressable>
         </ScrollView>
 
-        {/* Titre de section */}
-        <View style={styles.sectionHeader}>
-          <ThemedText style={styles.sectionTitle}>
-            {searchQuery ? 'Résultats' : 'Alertes récentes'}
-          </ThemedText>
-          <ThemedText style={styles.resultCount}>
-            {filteredReports.length} {filteredReports.length > 1 ? 'alertes' : 'alerte'}
-          </ThemedText>
-        </View>
-
         {loading ? (
           <View style={styles.center}>
-            <ActivityIndicator size="large" color="#3b82f6" />
+            <ActivityIndicator size="large" color={Colors.light.togoGreen} />
             <ThemedText style={styles.loadingText}>Chargement des déclarations…</ThemedText>
           </View>
         ) : reports.length === 0 ? (
-          <View style={styles.emptyContainer}>
+          <View style={[styles.emptyContainer, { paddingBottom: Math.max(140, insets.bottom + 140) }]}>
             <View style={styles.emptyIconCircle}>
-              <Ionicons name="megaphone-outline" size={40} color="#94a3b8" />
+              <Ionicons name="megaphone-outline" size={40} color={Colors.light.togoGreen} />
             </View>
             <ThemedText style={styles.emptyTitle}>Aucune déclaration</ThemedText>
             <ThemedText style={styles.emptyText}>
-              Utilisez l'onglet "Déclarer" pour publier la première alerte.
+              Publie une première alerte pour aider la communauté.
             </ThemedText>
+            <TouchableOpacity
+              style={styles.emptyBtn}
+              activeOpacity={0.9}
+              onPress={() => router.push({ pathname: '/(tabs)/explore' as any })}
+            >
+              <Ionicons name="add-circle" size={18} color="#ffffff" />
+              <ThemedText style={styles.emptyBtnText}>Créer une déclaration</ThemedText>
+            </TouchableOpacity>
           </View>
         ) : filteredReports.length === 0 ? (
-          <View style={styles.emptyContainer}>
+          <View style={[styles.emptyContainer, { paddingBottom: Math.max(140, insets.bottom + 140) }]}>
             <View style={styles.emptyIconCircle}>
-              <Ionicons name="search-outline" size={40} color="#94a3b8" />
+              <Ionicons name="search-outline" size={40} color={Colors.light.togoGreen} />
             </View>
             <ThemedText style={styles.emptyTitle}>Aucun résultat</ThemedText>
             <ThemedText style={styles.emptyText}>
@@ -398,24 +396,34 @@ export default function HomeScreen() {
             </ThemedText>
           </View>
         ) : (
-          <FlatList
-            data={filteredReports}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={[
-              styles.listContent,
-              { paddingBottom: Math.max(120, insets.bottom + 120) },
-            ]}
-            renderItem={renderItem}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={['#3b82f6']}
-                tintColor="#3b82f6"
-              />
-            }
-          />
+          <>
+            {/* Titre de section */}
+            <View style={styles.sectionHeader}>
+              <ThemedText style={styles.sectionTitle}>Alertes récentes</ThemedText>
+              <ThemedText style={styles.resultCount}>
+                {filteredReports.length} {filteredReports.length > 1 ? 'alertes' : 'alerte'}
+              </ThemedText>
+            </View>
+
+            <FlatList
+              data={filteredReports}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={[
+                styles.listContent,
+                { paddingBottom: Math.max(120, insets.bottom + 120) },
+              ]}
+              renderItem={renderItem}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  colors={[Colors.light.togoGreen]}
+                  tintColor={Colors.light.togoGreen}
+                />
+              }
+            />
+          </>
         )}
       </View>
     </View>
@@ -536,12 +544,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
+    paddingBottom: 40,
   },
   emptyIconCircle: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: 'rgba(0, 106, 78, 0.10)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -557,6 +566,20 @@ const styles = StyleSheet.create({
     color: '#64748b',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  emptyBtn: {
+    marginTop: 14,
+    backgroundColor: Colors.light.togoGreen,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  emptyBtnText: {
+    color: '#ffffff',
+    fontWeight: '800',
   },
   listContent: {
     gap: 12,
@@ -651,7 +674,7 @@ const styles = StyleSheet.create({
   viewMore: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#3b82f6',
+    color: Colors.light.togoGreen,
     flex: 1,
   },
   // Styles pour la barre de recherche

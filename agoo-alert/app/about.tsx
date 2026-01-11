@@ -2,7 +2,8 @@ import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { signOut } from 'firebase/auth';
+import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
+import { useEffect, useState } from 'react';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
@@ -10,6 +11,11 @@ import { auth } from '@/config/firebaseConfig';
 
 export default function AboutScreen() {
   const router = useRouter();
+  const [user, setUser] = useState<User | null>(auth.currentUser);
+
+  useEffect(() => {
+    return onAuthStateChanged(auth, (u) => setUser(u));
+  }, []);
 
   const doSignOut = async () => {
     await signOut(auth);
@@ -52,7 +58,7 @@ export default function AboutScreen() {
             <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
           </TouchableOpacity>
 
-          {auth.currentUser ? (
+          {user ? (
             <TouchableOpacity style={styles.logoutBtn} onPress={doSignOut}>
               <Ionicons name="log-out" size={18} color="#ffffff" />
               <ThemedText style={styles.logoutText}>Se déconnecter</ThemedText>
