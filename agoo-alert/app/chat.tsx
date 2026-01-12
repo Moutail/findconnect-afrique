@@ -410,62 +410,61 @@ export default function ChatScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Math.max(0, insets.top + 44)}
-    >
-      <ThemedView style={[styles.container, { paddingTop: insets.top + 6 }]}>
-        <View style={styles.header}>
-          <Ionicons
-            name="arrow-back"
-            size={24}
-            onPress={() => router.back()}
-            style={styles.backIcon}
-          />
-          <ThemedText type="title" style={styles.title}>
-            Chat sécurisé
-          </ThemedText>
+    <ThemedView style={[styles.container, { paddingTop: insets.top + 6 }]}>
+      <View style={styles.header}>
+        <Ionicons
+          name="arrow-back"
+          size={24}
+          onPress={() => router.back()}
+          style={styles.backIcon}
+        />
+        <ThemedText type="title" style={styles.title}>
+          Chat sécurisé
+        </ThemedText>
+      </View>
+
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator />
+          <ThemedText style={styles.helper}>Chargement des messages…</ThemedText>
         </View>
+      ) : (
+        <FlatList
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={[
+            styles.messagesList,
+            { paddingBottom: Math.max(120, insets.bottom + 120) }
+          ]}
+        />
+      )}
 
-        {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator />
-            <ThemedText style={styles.helper}>Chargement des messages…</ThemedText>
-          </View>
-        ) : (
-          <FlatList
-            data={messages}
-            keyExtractor={(item) => item.id}
-            renderItem={renderItem}
-            contentContainerStyle={styles.messagesList}
-          />
-        )}
-
-        {pendingImageUri ? (
-          <View style={styles.pendingWrap}>
-            <ExpoImage source={{ uri: pendingImageUri }} style={styles.pendingImage} contentFit="cover" />
-            <View style={styles.pendingActions}>
-              <TouchableOpacity
-                style={[styles.pendingButton, styles.pendingCancel]}
-                onPress={() => setPendingImageUri(null)}
-                activeOpacity={0.85}
-                disabled={sending}
-              >
-                <ThemedText style={styles.pendingCancelText}>Annuler</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.pendingButton, styles.pendingSend]}
-                onPress={handleSendPendingImage}
-                activeOpacity={0.85}
-                disabled={sending}
-              >
-                <ThemedText style={styles.pendingSendText}>Envoyer</ThemedText>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : pendingAudioUri ? (
-          <View style={styles.pendingWrap}>
+      {pendingImageUri || pendingAudioUri ? (
+        <View style={[styles.pendingWrap, { bottom: Math.max(70, insets.bottom + 70) }]}>
+          {pendingImageUri ? (
+            <>
+              <ExpoImage source={{ uri: pendingImageUri }} style={styles.pendingImage} contentFit="cover" />
+              <View style={styles.pendingActions}>
+                <TouchableOpacity
+                  style={[styles.pendingButton, styles.pendingCancel]}
+                  onPress={() => setPendingImageUri(null)}
+                  activeOpacity={0.85}
+                  disabled={sending}
+                >
+                  <ThemedText style={styles.pendingCancelText}>Annuler</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.pendingButton, styles.pendingSend]}
+                  onPress={handleSendPendingImage}
+                  activeOpacity={0.85}
+                  disabled={sending}
+                >
+                  <ThemedText style={styles.pendingSendText}>Envoyer</ThemedText>
+                </TouchableOpacity>
+              </View>
+            </>
+          ) : (
             <View style={styles.pendingAudioRow}>
               <TouchableOpacity
                 style={styles.pendingAudioPlay}
@@ -497,9 +496,15 @@ export default function ChatScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
-        ) : null}
+          )}
+        </View>
+      ) : null}
 
+      <KeyboardAvoidingView
+        style={styles.inputWrap}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
         <View style={[styles.inputRow, { paddingBottom: Math.max(10, insets.bottom + 10) }]}>
           <TouchableOpacity
             style={styles.mediaButton}
@@ -542,8 +547,8 @@ export default function ChatScreen() {
             )}
           </TouchableOpacity>
         </View>
-      </ThemedView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </ThemedView>
   );
 }
 
@@ -624,13 +629,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  inputWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 6,
+    paddingTop: 10,
+    paddingHorizontal: 12,
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: '#ffffff',
   },
   mediaButton: {
     width: 38,
@@ -648,12 +660,19 @@ const styles = StyleSheet.create({
     borderColor: '#1d4ed8',
   },
   pendingWrap: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e2e8f0',
     borderRadius: 16,
     padding: 10,
-    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
   pendingImage: {
     width: '100%',

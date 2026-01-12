@@ -6,8 +6,10 @@ import DashboardPage from './pages/Dashboard';
 import LoginPage from './pages/Login';
 import ReportDetailPage from './pages/ReportDetail';
 import ReportsPage from './pages/Reports';
+import VerificationsPage from './pages/Verifications';
 import UsersPage from './pages/Users';
 import UserChatPage from './pages/UserChat';
+import OrganizationRequestsPage from './pages/OrganizationRequests';
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { loading, user, isModerator } = useAdminAuth();
@@ -43,6 +45,8 @@ export default function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/reports/:id" element={<ReportDetailPage />} />
+        <Route path="/verifications" element={<VerificationsPage />} />
+        <Route path="/organization-requests" element={<OrganizationRequestsPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/users/:id" element={<UserChatPage />} />
       </Route>

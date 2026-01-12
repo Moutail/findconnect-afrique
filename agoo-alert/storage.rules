@@ -8,7 +8,8 @@ service firebase.storage {
     }
 
     // Documents de vérification (NOUVEAU - accès restreint)
-    match /verification/{userId}/selfie_{timestamp}.jpg {
+    // Tous les fichiers selfie_*.jpg dans /verification/{userId}/
+    match /verification/{userId}/{fileName} {
       allow read: if request.auth != null && (
         request.auth.uid == userId ||
         request.auth.token.moderator == true
@@ -16,12 +17,21 @@ service firebase.storage {
       allow write: if request.auth != null && request.auth.uid == userId;
     }
 
-    match /verification/{userId}/idcard_{timestamp}.jpg {
-      allow read: if request.auth != null && (
-        request.auth.uid == userId ||
-        request.auth.token.moderator == true
-      );
-      allow write: if request.auth != null && request.auth.uid == userId;
+    // Logos d'organisations
+    match /organizations/logos/{fileName} {
+      allow read: if true; // Logos publics
+      allow write: if request.auth != null; // Tout utilisateur connecté peut uploader
+    }
+
+    // Documents de vérification d'organisations
+    match /organizations/documents/{fileName} {
+      allow read: if request.auth != null && request.auth.token.moderator == true;
+      allow write: if request.auth != null;
+    }
+
+    // Règle catch-all pour debugging (à supprimer en production)
+    match /organizations/{path=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }

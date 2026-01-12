@@ -40,6 +40,8 @@ export default function Layout() {
           <nav style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
             <NavLink to="/dashboard" style={navLinkStyle}>Dashboard</NavLink>
             <NavLink to="/reports" style={navLinkStyle}>Publications</NavLink>
+            <NavLink to="/verifications" style={navLinkStyle}>Vérifications</NavLink>
+            <NavLink to="/organization-requests" style={navLinkStyle}>Organisations</NavLink>
             <NavLink to="/users" style={navLinkStyle}>Utilisateurs</NavLink>
             <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
             <span style={{ fontSize: 12, color: 'var(--muted)' }}>{user?.email}</span>

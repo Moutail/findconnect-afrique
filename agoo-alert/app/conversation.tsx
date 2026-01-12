@@ -179,7 +179,10 @@ export default function ConversationScreen() {
       <FlatList
         data={sorted}
         keyExtractor={(m) => m.id}
-        contentContainerStyle={{ padding: 14, paddingBottom: 140 }}
+        contentContainerStyle={{
+          padding: 14,
+          paddingBottom: Math.max(120, insets.bottom + 120)
+        }}
         renderItem={({ item }) => {
           const isMe = item.senderId === auth.currentUser?.uid;
           return (
@@ -194,10 +197,10 @@ export default function ConversationScreen() {
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Math.max(0, insets.bottom + 10)}
+        keyboardVerticalOffset={0}
         style={styles.composerWrap}
       >
-        <View style={styles.composer}>
+        <View style={[styles.composer, { paddingBottom: Math.max(12, insets.bottom + 12) }]}>
           <TextInput
             value={text}
             onChangeText={setText}

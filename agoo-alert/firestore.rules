@@ -27,32 +27,54 @@ service cloud.firestore {
         return resource.data.moderationStatus == 'approved';
       }
 
+      function canPublishForOrg(orgId) {
+        let org = get(/databases/$(database)/documents/organizations/$(orgId));
+        let member = get(/databases/$(database)/documents/organizationMembers/$(orgId + '_' + request.auth.uid));
+        return org.data.canPost == true
+          && org.data.verificationStatus == 'approved'
+          && member.data.status == 'active'
+          && member.data.permissions.canPublish == true;
+      }
+
       allow read: if isModerator() || isApproved() || isOwner();
 
-      allow create: if isSignedIn()
-        && isVerified()
-        && request.resource.data.createdBy == request.auth.uid
-        && request.resource.data.moderationStatus == 'pending'
-        && request.resource.data.moderatedAt == null
-        && request.resource.data.moderatedBy == null;
+      allow create: if isSignedIn() && (
+        (request.resource.data.publishedBy == 'user'
+          && isVerified()
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.moderationStatus == 'pending'
+          && request.resource.data.moderatedAt == null
+          && request.resource.data.moderatedBy == null
+        ) || (
+          request.resource.data.publishedBy == 'organization'
+          && request.resource.data.createdBy == request.auth.uid
+          && canPublishForOrg(request.resource.data.organizationId)
+          && request.resource.data.moderationStatus == 'pending'
+        )
+      );
 
       allow update: if isModerator() || (
         isOwner()
         && resource.data.moderationStatus == 'pending'
         && request.resource.data.moderationStatus == 'pending'
         && request.resource.data.createdBy == resource.data.createdBy
+      ) || (
+        resource.data.publishedBy == 'organization'
+        && canPublishForOrg(resource.data.organizationId)
       );
 
       allow delete: if isModerator() || isOwner();
 
       match /messages/{messageId} {
         function canAccessChat() {
-          return isModerator() || (
-            isSignedIn() && get(/databases/$(database)/documents/reports/$(reportId)).data.createdBy == request.auth.uid
-          );
+          let report = get(/databases/$(database)/documents/reports/$(reportId));
+          let isOwner = report.data.createdBy == request.auth.uid;
+          let hasAcceptedRequest = exists(/databases/$(database)/documents/reports/$(reportId)/chatRequests/$(request.auth.uid)) &&
+                                  get(/databases/$(database)/documents/reports/$(reportId)/chatRequests/$(request.auth.uid)).data.status == 'accepted';
+          return isModerator() || (isSignedIn() && (isOwner || hasAcceptedRequest));
         }
 
-        allow read: if canAccessChat() || (isSignedIn() && resource.data.senderId == request.auth.uid);
+        allow read: if canAccessChat();
 
         allow create: if isSignedIn()
           && request.resource.data.senderId == request.auth.uid
@@ -137,6 +159,68 @@ service cloud.firestore {
 
       allow create: if isSignedIn()
         && request.resource.data.userId == request.auth.uid;
+
+      allow update: if isModerator();
+
+      allow delete: if isModerator();
+    }
+
+    match /organizations/{orgId} {
+      function isMember() {
+        return exists(/databases/$(database)/documents/organizationMembers/$(orgId + '_' + request.auth.uid));
+      }
+
+      function getMemberData() {
+        return get(/databases/$(database)/documents/organizationMembers/$(orgId + '_' + request.auth.uid)).data;
+      }
+
+      function hasPermission(permission) {
+        return isMember() && getMemberData().status == 'active' && getMemberData().permissions[permission] == true;
+      }
+
+      allow read: if true;
+
+      allow create: if isSignedIn();
+
+      allow update: if isModerator() || hasPermission('canEditOrg');
+
+      allow delete: if isModerator();
+    }
+
+    match /organizationMembers/{memberId} {
+      function getOrgId() {
+        return resource.data.organizationId;
+      }
+
+      function isOrgMember() {
+        return isSignedIn() && resource.data.userId == request.auth.uid;
+      }
+
+      function canManageMembers() {
+        let orgId = getOrgId();
+        let memberDoc = get(/databases/$(database)/documents/organizationMembers/$(orgId + '_' + request.auth.uid));
+        return memberDoc.data.status == 'active' && memberDoc.data.permissions.canManageMembers == true;
+      }
+
+      allow read: if isModerator() || isOrgMember() || canManageMembers();
+
+      allow create: if isModerator() || canManageMembers();
+
+      allow update: if isModerator() || canManageMembers();
+
+      allow delete: if isModerator() || canManageMembers();
+    }
+
+    match /organizationRequests/{requestId} {
+      function isRequester() {
+        return isSignedIn() && resource.data.requestedBy == request.auth.uid;
+      }
+
+      allow read: if isModerator() || isRequester();
+
+      allow create: if isSignedIn()
+        && request.resource.data.requestedBy == request.auth.uid
+        && request.resource.data.status == 'pending';
 
       allow update: if isModerator();
 

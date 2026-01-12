@@ -48,7 +48,12 @@ export default function RootLayout() {
         <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
         <Stack.Screen name="conversations" options={{ headerShown: false }} />
         <Stack.Screen name="conversation" options={{ headerShown: false }} />
+        <Stack.Screen name="chat" options={{ headerShown: false }} />
         <Stack.Screen name="chat-requests" options={{ headerShown: false }} />
+        <Stack.Screen name="create-organization" options={{ headerShown: false }} />
+        <Stack.Screen name="identity-verification" options={{ headerShown: false }} />
+        <Stack.Screen name="report-detail" options={{ headerShown: false }} />
+        <Stack.Screen name="report-edit" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style="auto" />

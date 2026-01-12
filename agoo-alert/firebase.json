@@ -5,6 +5,9 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
+  "storage": {
+    "rules": "storage.rules"
+  },
   "functions": [
     {
       "source": "functions",
@@ -18,8 +21,7 @@
         "*.local"
       ],
       "predeploy": [
-        "npm.cmd --prefix functions run lint",
-        "npm.cmd --prefix functions run build"
+        "npm --prefix functions run build"
       ]
     }
   ],

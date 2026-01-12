@@ -17,9 +17,12 @@ import { Image as ExpoImage } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { DistanceFilter } from '@/components/DistanceFilter';
 import { Colors } from '@/constants/theme';
 import { db } from '@/config/firebaseConfig';
 import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import * as Location from 'expo-location';
+import { Coordinates, calculateDistance } from '@/types/location';
 
 type Report = {
   id: string;
@@ -44,6 +47,12 @@ export default function HomeScreen() {
   const [reloadKey, setReloadKey] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<FilterType>('all');
+
+  // Distance filter
+  const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
+  const [distanceFilterEnabled, setDistanceFilterEnabled] = useState(false);
+  const [maxDistance, setMaxDistance] = useState<number | null>(null);
+  const [showDistanceFilter, setShowDistanceFilter] = useState(false);
 
   // Filtrer les résultats
   const filteredReports = useMemo(() => {
@@ -70,8 +79,37 @@ export default function HomeScreen() {
       );
     }
 
+    // Filtre par distance
+    if (distanceFilterEnabled && maxDistance && userLocation) {
+      result = result.filter((r: any) => {
+        if (!r.location?.coordinates) return false;
+        const distance = calculateDistance(userLocation, r.location.coordinates);
+        return distance <= maxDistance;
+      });
+    }
+
     return result;
-  }, [reports, searchQuery, filterType]);
+  }, [reports, searchQuery, filterType, distanceFilterEnabled, maxDistance, userLocation]);
+
+  // Get user location for distance filtering
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        try {
+          const location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          setUserLocation({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          });
+        } catch (error) {
+          console.error('Error getting location:', error);
+        }
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -236,6 +274,13 @@ export default function HomeScreen() {
 
             <View style={{ flex: 1 }} />
             <TouchableOpacity
+              onPress={() => router.push({ pathname: '/create-organization' as any })}
+              activeOpacity={0.85}
+              style={styles.aboutBtn}
+            >
+              <Ionicons name="business" size={20} color="#ffffff" />
+            </TouchableOpacity>
+            <TouchableOpacity
               onPress={() => router.push({ pathname: '/about' as any })}
               activeOpacity={0.85}
               style={styles.aboutBtn}
@@ -360,7 +405,34 @@ export default function HomeScreen() {
               </View>
             )}
           </Pressable>
+
+          {/* Distance Filter Toggle Button */}
+          <TouchableOpacity
+            onPress={() => setShowDistanceFilter(!showDistanceFilter)}
+            style={[styles.filterChip, showDistanceFilter && styles.filterChipActive]}
+          >
+            <Ionicons
+              name="location-outline"
+              size={14}
+              color={showDistanceFilter ? '#ffffff' : '#64748b'}
+            />
+            <ThemedText style={[styles.filterText, showDistanceFilter && styles.filterTextActive]}>
+              Distance
+            </ThemedText>
+          </TouchableOpacity>
         </ScrollView>
+
+        {/* Distance Filter Component */}
+        {showDistanceFilter && (
+          <View style={styles.distanceFilterContainer}>
+            <DistanceFilter
+              maxDistance={maxDistance}
+              onChange={setMaxDistance}
+              enabled={distanceFilterEnabled}
+              onToggle={setDistanceFilterEnabled}
+            />
+          </View>
+        )}
 
         {/* Titre de section */}
         <View style={styles.sectionHeader}>
@@ -711,6 +783,11 @@ const styles = StyleSheet.create({
   },
   filterTextActive: {
     color: '#ffffff',
+  },
+  distanceFilterContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 12,
   },
   // Styles pour le header de section
   sectionHeader: {
