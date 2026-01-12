@@ -23,7 +23,6 @@ import { auth, db, storage } from '@/config/firebaseConfig';
 import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { checkVerificationStatus } from '@/utils/verificationUtils';
-import { useRouter } from 'expo-router';
 
 type ReportType = 'person' | 'object';
 type ReportKind = 'lost' | 'found';
