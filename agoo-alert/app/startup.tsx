@@ -17,6 +17,8 @@ import { ThemedText } from '@/components/themed-text';
 import { auth } from '@/config/firebaseConfig';
 import { Colors } from '@/constants/theme';
 
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
+
 const { width, height } = Dimensions.get('window');
 const isSmallDevice = height < 700;
 
@@ -30,8 +32,6 @@ export default function StartupScreen() {
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    SplashScreen.preventAutoHideAsync().catch(() => undefined);
-
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -55,25 +55,34 @@ export default function StartupScreen() {
       ),
     ]).start();
 
-    const t = setTimeout(async () => {
-      try {
-        await SplashScreen.hideAsync();
-      } catch {
-        // ignore
-      }
+    const t = setTimeout(() => {
+      (async () => {
+        try {
+          await SplashScreen.hideAsync();
+        } catch {
+          // ignore
+        }
 
-      const user = auth.currentUser;
-      if (user) {
-        router.replace('/(tabs)');
-        return;
-      }
+        try {
+          const user = auth.currentUser;
+          if (user) {
+            router.replace('/(tabs)');
+            return;
+          }
 
-      const hasSeen = await AsyncStorage.getItem(HAS_SEEN_ONBOARDING_KEY);
-      if (hasSeen === '1') {
-        router.replace('/welcome' as any);
-      } else {
-        router.replace('/onboarding' as any);
-      }
+          const hasSeen = await AsyncStorage.getItem(HAS_SEEN_ONBOARDING_KEY);
+          if (hasSeen === '1') {
+            router.replace('/welcome' as any);
+          } else {
+            router.replace('/onboarding' as any);
+          }
+        } catch (e) {
+          // En build release, une erreur AsyncStorage / navigation peut laisser l'app sur un écran vide.
+          // On force un fallback sûr.
+          console.error('Startup navigation failed', e);
+          router.replace('/welcome' as any);
+        }
+      })();
     }, 1200);
 
     return () => clearTimeout(t);

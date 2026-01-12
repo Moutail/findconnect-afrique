@@ -10,10 +10,6 @@ import { auth, db } from '@/config/firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
-
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 

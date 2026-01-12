@@ -20,6 +20,7 @@ import { Audio } from 'expo-av';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { auth, db, storage } from '@/config/firebaseConfig';
+import { Colors } from '@/constants/theme';
 import {
   addDoc,
   collection,
@@ -471,7 +472,7 @@ export default function ChatScreen() {
                 onPress={playPendingAudio}
                 activeOpacity={0.85}
               >
-                <Ionicons name="play" size={18} color="#1d4ed8" />
+                <Ionicons name="play" size={18} color={Colors.light.togoGreen} />
                 <ThemedText style={styles.pendingAudioText}>{formatDuration(pendingAudioDurationMs)}</ThemedText>
               </TouchableOpacity>
               <View style={styles.pendingActions}>
@@ -507,12 +508,16 @@ export default function ChatScreen() {
       >
         <View style={[styles.inputRow, { paddingBottom: Math.max(10, insets.bottom + 10) }]}>
           <TouchableOpacity
-            style={styles.mediaButton}
+            style={[styles.mediaButton, (!!pendingImageUri || !!pendingAudioUri) && styles.mediaButtonActive]}
             onPress={handlePickImage}
             disabled={sending || !!recording || !!pendingAudioUri || !!pendingImageUri}
             activeOpacity={0.85}
           >
-            <Ionicons name="image-outline" size={20} color={sending || recording ? '#94a3b8' : '#1d4ed8'} />
+            <Ionicons
+              name="image-outline"
+              size={20}
+              color={sending || recording ? '#94a3b8' : Colors.light.togoGreen}
+            />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -524,7 +529,7 @@ export default function ChatScreen() {
             <Ionicons
               name={recording ? 'stop-circle-outline' : 'mic-outline'}
               size={20}
-              color={recording ? '#ffffff' : sending ? '#94a3b8' : '#1d4ed8'}
+              color={recording ? '#ffffff' : sending ? '#94a3b8' : Colors.light.togoGreen}
             />
           </TouchableOpacity>
 
@@ -599,7 +604,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   bubbleMe: {
-    backgroundColor: '#1d4ed8',
+    backgroundColor: Colors.light.togoGreen,
   },
   bubbleOther: {
     backgroundColor: '#e5e7eb',
@@ -649,15 +654,15 @@ const styles = StyleSheet.create({
     height: 38,
     borderRadius: 19,
     borderWidth: 1,
-    borderColor: '#dbeafe',
-    backgroundColor: '#eff6ff',
+    borderColor: 'rgba(0, 106, 78, 0.22)',
+    backgroundColor: 'rgba(0, 106, 78, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
   },
   mediaButtonActive: {
-    backgroundColor: '#1d4ed8',
-    borderColor: '#1d4ed8',
+    backgroundColor: Colors.light.togoGreen,
+    borderColor: Colors.light.togoGreen,
   },
   pendingWrap: {
     position: 'absolute',
@@ -693,14 +698,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 12,
-    backgroundColor: '#eff6ff',
+    backgroundColor: 'rgba(0, 106, 78, 0.08)',
     borderWidth: 1,
-    borderColor: '#dbeafe',
+    borderColor: 'rgba(0, 106, 78, 0.22)',
   },
   pendingAudioText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#1d4ed8',
+    color: Colors.light.togoGreen,
   },
   pendingActions: {
     flexDirection: 'row',
@@ -717,7 +722,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1f5f9',
   },
   pendingSend: {
-    backgroundColor: '#1d4ed8',
+    backgroundColor: Colors.light.togoGreen,
   },
   pendingCancelText: {
     fontSize: 13,
@@ -743,7 +748,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#1d4ed8',
+    backgroundColor: Colors.light.togoGreen,
     alignItems: 'center',
     justifyContent: 'center',
   },

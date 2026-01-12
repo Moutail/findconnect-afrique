@@ -152,7 +152,7 @@ export default function ReportDetailScreen() {
     <View style={styles.screen}>
       {/* Header avec dégradé */}
       <LinearGradient
-        colors={['#0f172a', '#1e3a5f', '#0f172a']}
+        colors={['#003c2c', Colors.light.togoGreen, Colors.light.togoYellow]}
         style={styles.headerGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 999,
-    backgroundColor: '#3b82f6',
+    backgroundColor: Colors.light.togoGreen,
   },
   retryText: {
     fontSize: 14,
@@ -566,7 +566,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#dbeafe',
+    backgroundColor: 'rgba(0, 106, 78, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },

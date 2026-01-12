@@ -2,11 +2,45 @@ import { Tabs } from 'expo-router';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { Colors } from '@/constants/theme';
+import { auth, db } from '@/config/firebaseConfig';
 
 export default function TabLayout() {
+  const router = useRouter();
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+
+  useEffect(() => {
+    let unsubUser: null | (() => void) = null;
+    const unsubAuth = onAuthStateChanged(auth, (u) => {
+      if (unsubUser) {
+        unsubUser();
+        unsubUser = null;
+      }
+      if (!u) {
+        setUnreadCount(0);
+        router.replace('/welcome' as any);
+        return;
+      }
+
+      unsubUser = onSnapshot(doc(db, 'users', u.uid), (snap) => {
+        const data = snap.data() as any;
+        const n = Number(data?.unreadMessagesCount ?? 0);
+        setUnreadCount(Number.isFinite(n) && n > 0 ? n : 0);
+      });
+    });
+
+    return () => {
+      unsubAuth();
+      if (unsubUser) unsubUser();
+    };
+  }, [router]);
+
   return (
     <Tabs
       screenOptions={{
@@ -56,6 +90,8 @@ export default function TabLayout() {
         name="conversations"
         options={{
           title: 'Messages',
+          tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : undefined,
+          tabBarBadgeStyle: styles.badge,
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.iconContainer, focused && styles.iconContainerActive]}>
               <Ionicons name={focused ? 'chatbubbles' : 'chatbubbles-outline'} size={22} color={color} />
@@ -99,5 +135,16 @@ const styles = StyleSheet.create({
   },
   iconContainerActive: {
     backgroundColor: 'rgba(0, 106, 78, 0.12)',
+  },
+  badge: {
+    backgroundColor: '#d21034',
+    color: '#ffffff',
+    fontWeight: '800',
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 6,
+    alignSelf: 'center',
+    marginTop: 2,
   },
 });
