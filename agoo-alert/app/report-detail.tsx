@@ -225,7 +225,7 @@ export default function ReportDetailScreen() {
                 <ExpoImage
                   source={{ uri: report.imageUrl }}
                   style={styles.coverImage}
-                  contentFit="cover"
+                  contentFit="contain"
                   transition={150}
                 />
               </View>
@@ -286,6 +286,39 @@ export default function ReportDetailScreen() {
           <View style={styles.actionsCard}>
             <ThemedText style={styles.actionsTitle}>Actions</ThemedText>
 
+            {!isOwner && (
+              <View style={styles.primaryActionsRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.primaryActionButton,
+                    styles.primaryActionButtonMain,
+                    requestingChat && styles.primaryActionButtonDisabled,
+                  ]}
+                  onPress={requestChat}
+                  disabled={requestingChat}
+                  activeOpacity={0.9}
+                >
+                  <Ionicons name="chatbubble-ellipses" size={18} color="#ffffff" />
+                  <ThemedText style={styles.primaryActionText}>
+                    {requestingChat ? 'Envoi...' : 'Demander un chat'}
+                  </ThemedText>
+                </TouchableOpacity>
+
+                {report.contactPhone ? (
+                  <TouchableOpacity
+                    style={[styles.primaryActionButton, styles.primaryActionButtonGhost]}
+                    onPress={handleCall}
+                    activeOpacity={0.9}
+                  >
+                    <Ionicons name="call" size={18} color={Colors.light.togoGreen} />
+                    <ThemedText style={styles.primaryActionTextGhost}>Appeler</ThemedText>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            )}
+
+            {!isOwner && <View style={styles.actionsDivider} />}
+
             {isOwner && (
               <TouchableOpacity
                 style={styles.actionButton}
@@ -333,24 +366,13 @@ export default function ReportDetailScreen() {
               </TouchableOpacity>
             ) : (
               <>
-                <TouchableOpacity style={styles.actionButton} onPress={requestChat}>
-                  <View style={[styles.actionIconCircle, { backgroundColor: 'rgba(255,206,0,0.22)' }]}>
-                    <Ionicons name="chatbubble-ellipses" size={20} color="#92400e" />
-                  </View>
-                  <View style={styles.actionContent}>
-                    <ThemedText style={styles.actionLabel}>Demander un chat</ThemedText>
-                    <ThemedText style={styles.actionValue}>Le déclarant doit accepter</ThemedText>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
-                </TouchableOpacity>
-
                 <TouchableOpacity style={styles.actionButton} onPress={openConversation}>
                   <View style={[styles.actionIconCircle, { backgroundColor: 'rgba(0,106,78,0.12)' }]}>
                     <Ionicons name="chatbubbles" size={20} color={Colors.light.togoGreen} />
                   </View>
                   <View style={styles.actionContent}>
                     <ThemedText style={styles.actionLabel}>Ouvrir la conversation</ThemedText>
-                    <ThemedText style={styles.actionValue}>Si la demande a été acceptée</ThemedText>
+                    <ThemedText style={styles.actionValue}>Disponible après acceptation de la demande</ThemedText>
                   </View>
                   <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
                 </TouchableOpacity>
@@ -378,6 +400,8 @@ export default function ReportDetailScreen() {
               </View>
             </LinearGradient>
           </View>
+
+          <View style={styles.bottomSpacer} />
         </ScrollView>
       ) : null}
     </View>
@@ -407,7 +431,7 @@ const styles = StyleSheet.create({
   },
   coverImage: {
     width: '100%',
-    height: 220,
+    height: 260,
   },
   headerGradient: {
     paddingTop: 50,
@@ -491,13 +515,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
-    gap: 16,
+    padding: 14,
+    gap: 14,
+  },
+  bottomSpacer: {
+    height: 140,
   },
   mainCard: {
     backgroundColor: '#ffffff',
     borderRadius: 20,
-    padding: 20,
+    padding: 16,
     shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
@@ -522,7 +549,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   typeLabel: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#1e293b',
   },
@@ -547,17 +574,17 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   mainTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: '#0f172a',
-    lineHeight: 28,
+    lineHeight: 26,
     marginBottom: 16,
   },
   infoCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
-    padding: 14,
+    padding: 12,
     backgroundColor: '#f8fafc',
     borderRadius: 14,
     marginBottom: 12,
@@ -580,7 +607,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   infoText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: '#1e293b',
   },
@@ -590,7 +617,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   descriptionCard: {
-    padding: 14,
+    padding: 12,
     backgroundColor: '#f8fafc',
     borderRadius: 14,
   },
@@ -606,14 +633,14 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   descriptionText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#334155',
-    lineHeight: 22,
+    lineHeight: 20,
   },
   actionsCard: {
     backgroundColor: '#ffffff',
     borderRadius: 20,
-    padding: 16,
+    padding: 14,
     shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
@@ -625,6 +652,52 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#64748b',
     marginBottom: 12,
+  },
+  actionsDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginBottom: 6,
+  },
+  primaryActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 6,
+  },
+  primaryActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 14,
+    marginBottom: 10,
+  },
+  primaryActionButtonMain: {
+    backgroundColor: Colors.light.togoGreen,
+    shadowColor: Colors.light.togoGreen,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  primaryActionButtonDisabled: {
+    opacity: 0.7,
+  },
+  primaryActionButtonGhost: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  primaryActionText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  primaryActionTextGhost: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.light.togoGreen,
   },
   actionButton: {
     flexDirection: 'row',
@@ -645,12 +718,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   actionLabel: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: '#1e293b',
   },
   actionValue: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#64748b',
     marginTop: 2,
   },

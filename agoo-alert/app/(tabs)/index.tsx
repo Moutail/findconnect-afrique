@@ -94,9 +94,16 @@ export default function HomeScreen() {
   // Get user location for distance filtering
   useEffect(() => {
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        try {
+      try {
+        // Vérifier si les services de localisation sont disponibles
+        const servicesEnabled = await Location.hasServicesEnabledAsync();
+        if (!servicesEnabled) {
+          // Services non disponibles (pas de Google Play Services ou localisation désactivée)
+          return;
+        }
+
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
           const location = await Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.Balanced,
           });
@@ -104,9 +111,9 @@ export default function HomeScreen() {
             latitude: location.coords.latitude,
             longitude: location.coords.longitude,
           });
-        } catch (error) {
-          console.error('Error getting location:', error);
         }
+      } catch (error) {
+        // Silencieux - la localisation n'est pas critique pour l'accueil
       }
     })();
   }, []);
@@ -241,8 +248,10 @@ export default function HomeScreen() {
           <ThemedText style={styles.title} numberOfLines={2}>{item.title}</ThemedText>
 
           <View style={styles.footerRow}>
-            <ThemedText style={styles.viewMore}>Voir le détail</ThemedText>
-            <Ionicons name="chevron-forward" size={16} color={Colors.light.togoGreen} />
+            <View style={styles.ctaButton}>
+              <ThemedText style={styles.ctaText}>Voir le détail</ThemedText>
+              <Ionicons name="chevron-forward" size={16} color="#ffffff" />
+            </View>
           </View>
         </View>
       </TouchableOpacity>
@@ -346,7 +355,13 @@ export default function HomeScreen() {
                 ]}
               >
                 <Ionicons name="grid-outline" size={14} color={filterType === 'all' ? '#ffffff' : '#64748b'} />
-                <ThemedText style={[styles.filterText, filterType === 'all' && styles.filterTextActive]}>Tout</ThemedText>
+                <ThemedText
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  style={[styles.filterText, filterType === 'all' && styles.filterTextActive]}
+                >
+                  Tout
+                </ThemedText>
               </View>
             )}
           </Pressable>
@@ -361,7 +376,11 @@ export default function HomeScreen() {
                 ]}
               >
                 <Ionicons name="person-outline" size={14} color={filterType === 'person' ? '#ffffff' : '#64748b'} />
-                <ThemedText style={[styles.filterText, filterType === 'person' && styles.filterTextActive]}>
+                <ThemedText
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  style={[styles.filterText, filterType === 'person' && styles.filterTextActive]}
+                >
                   Personnes
                 </ThemedText>
               </View>
@@ -378,7 +397,11 @@ export default function HomeScreen() {
                 ]}
               >
                 <Ionicons name="briefcase-outline" size={14} color={filterType === 'object_lost' ? '#ffffff' : '#64748b'} />
-                <ThemedText style={[styles.filterText, filterType === 'object_lost' && styles.filterTextActive]}>
+                <ThemedText
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  style={[styles.filterText, filterType === 'object_lost' && styles.filterTextActive]}
+                >
                   Objets perdus
                 </ThemedText>
               </View>
@@ -399,7 +422,11 @@ export default function HomeScreen() {
                   size={14}
                   color={filterType === 'object_found' ? '#ffffff' : '#64748b'}
                 />
-                <ThemedText style={[styles.filterText, filterType === 'object_found' && styles.filterTextActive]}>
+                <ThemedText
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  style={[styles.filterText, filterType === 'object_found' && styles.filterTextActive]}
+                >
                   Objets trouvés
                 </ThemedText>
               </View>
@@ -416,7 +443,11 @@ export default function HomeScreen() {
               size={14}
               color={showDistanceFilter ? '#ffffff' : '#64748b'}
             />
-            <ThemedText style={[styles.filterText, showDistanceFilter && styles.filterTextActive]}>
+            <ThemedText
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              style={[styles.filterText, showDistanceFilter && styles.filterTextActive]}
+            >
               Distance
             </ThemedText>
           </TouchableOpacity>
@@ -475,7 +506,7 @@ export default function HomeScreen() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={[
               styles.listContent,
-              { paddingBottom: Math.max(120, insets.bottom + 120) },
+              { paddingBottom: Math.max(180, insets.bottom + 180) },
             ]}
             renderItem={renderItem}
             showsVerticalScrollIndicator={false}
@@ -497,31 +528,31 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f1f5f9',
   },
   headerGradient: {
-    paddingTop: 50,
-    paddingBottom: 24,
+    paddingTop: 36,
+    paddingBottom: 12,
     paddingHorizontal: 20,
     overflow: 'hidden',
   },
   decorCircle1: {
     position: 'absolute',
-    top: -50,
-    right: -50,
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: 'rgba(255, 206, 0, 0.22)',
+    top: -60,
+    right: -40,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   decorCircle2: {
     position: 'absolute',
-    bottom: -30,
-    left: -30,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(210, 16, 52, 0.14)',
+    bottom: -40,
+    left: -40,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   headerContent: {
     zIndex: 1,
@@ -530,68 +561,80 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 20,
+    marginBottom: 8,
   },
   logoCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 206, 0, 0.22)',
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   aboutBtn: {
-    width: 38,
-    height: 38,
+    width: 36,
+    height: 36,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 19,
     fontWeight: '700',
     color: '#ffffff',
+    letterSpacing: 0.3,
   },
   headerSubtitle: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.7)',
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.75)',
     marginTop: 2,
+    letterSpacing: 0.2,
   },
   statsRow: {
     flexDirection: 'row',
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   statItem: {
     flex: 1,
     alignItems: 'center',
   },
   statNumber: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
     color: '#ffffff',
   },
   statLabel: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.7)',
-    marginTop: 2,
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 3,
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   statDivider: {
     width: 1,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   listContainer: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 20,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#334155',
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1e293b',
+    letterSpacing: 0.2,
   },
   center: {
     flex: 1,
@@ -607,47 +650,49 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: 40,
   },
   emptyIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#f1f5f9',
+    width: 88,
+    height: 88,
+    borderRadius: 24,
+    backgroundColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#334155',
+    fontWeight: '700',
+    color: '#1e293b',
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
     color: '#64748b',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22,
   },
   listContent: {
-    gap: 12,
+    gap: 16,
   },
   card: {
     flexDirection: 'column',
-    borderRadius: 16,
+    borderRadius: 20,
     backgroundColor: '#ffffff',
     shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 24,
+    elevation: 6,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.04)',
   },
   coverWrap: {
     width: '100%',
-    height: 170,
-    backgroundColor: '#f1f5f9',
+    height: 180,
+    backgroundColor: '#e2e8f0',
   },
   coverImage: {
     width: '100%',
@@ -658,88 +703,108 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 70,
+    height: 80,
   },
   cardBody: {
-    padding: 14,
+    padding: 16,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   typeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
   iconGradient: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   typeText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#334155',
+    color: '#1e293b',
   },
   cityRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    marginTop: 2,
+    gap: 4,
+    marginTop: 3,
   },
   cityText: {
-    fontSize: 11,
-    color: '#94a3b8',
+    fontSize: 12,
+    color: '#64748b',
   },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
   statusText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
     color: 'white',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   title: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
-    lineHeight: 20,
+    color: '#0f172a',
+    lineHeight: 22,
   },
   footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
-    paddingTop: 10,
+    marginTop: 14,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
   },
-  viewMore: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#3b82f6',
+  ctaButton: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: Colors.light.togoGreen,
+    shadowColor: Colors.light.togoGreen,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  ctaText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#ffffff',
+    letterSpacing: 0.2,
   },
   // Styles pour la barre de recherche
   searchContainer: {
-    marginTop: 16,
+    marginTop: 8,
+    marginBottom: 4,
   },
   searchInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 48,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    height: 42,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   searchIcon: {
-    marginRight: 10,
+    marginRight: 12,
   },
   searchInput: {
     flex: 1,
@@ -748,38 +813,48 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   clearButton: {
-    padding: 4,
+    padding: 6,
   },
   // Styles pour les filtres
   filtersRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
+    gap: 10,
+    marginBottom: 16,
     paddingRight: 8,
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: '#f1f5f9',
+    minHeight: 40,
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    flexShrink: 0,
+    flexGrow: 0,
     borderWidth: 1,
     borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   filterChipActive: {
     backgroundColor: Colors.light.togoGreen,
     borderColor: Colors.light.togoGreen,
   },
   filterChipPressed: {
-    backgroundColor: 'rgba(255, 206, 0, 0.22)',
-    borderColor: 'rgba(255, 206, 0, 0.35)',
+    backgroundColor: '#f8fafc',
+    borderColor: Colors.light.togoGreen,
   },
   filterText: {
     fontSize: 13,
-    fontWeight: '500',
-    color: '#64748b',
+    fontWeight: '600',
+    color: '#475569',
+    flexShrink: 0,
+    lineHeight: 16,
   },
   filterTextActive: {
     color: '#ffffff',
@@ -794,10 +869,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   resultCount: {
     fontSize: 13,
-    color: '#94a3b8',
+    fontWeight: '500',
+    color: '#64748b',
+    backgroundColor: '#e2e8f0',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
 });

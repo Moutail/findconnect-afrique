@@ -54,6 +54,8 @@ export default function DeclareScreen() {
   // Images
   const [imageUris, setImageUris] = useState<string[]>([]);
 
+  const canSubmit = !!user && !!title.trim() && !!description.trim() && validateCategoryMetadata(categoryMetadata) && !loading;
+
   const handlePickImages = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
@@ -152,7 +154,13 @@ export default function DeclareScreen() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         moderationStatus: 'pending',
+        moderatedAt: null,
+        moderatedBy: null,
         status: 'open',
+
+        // Images (initialisées pour schéma stable)
+        imageUrls: [],
+        imageUrl: '',
       };
 
       // Ajouter subCategory seulement si définie
@@ -194,7 +202,12 @@ export default function DeclareScreen() {
       );
     } catch (error) {
       console.error('Error creating report:', error);
-      Alert.alert('Erreur', 'Une erreur est survenue lors de la création de votre publication. Veuillez réessayer.');
+      const anyErr: any = error;
+      Alert.alert(
+        'Erreur',
+        anyErr?.message ||
+          "Une erreur est survenue lors de la création de votre publication. Vérifiez votre connexion et les règles Firestore/Storage."
+      );
     } finally {
       setLoading(false);
     }
@@ -213,66 +226,160 @@ export default function DeclareScreen() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={insets.top + 60}
       >
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
           {/* Sélecteur de contexte (user vs organisation) */}
-          <PublishContextSelector selectedContext={publishContext} onContextChange={setPublishContext} />
-
-          {/* Titre */}
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>
-              Titre <ThemedText style={styles.required}>*</ThemedText>
-            </ThemedText>
-            <TextInput
-              style={styles.input}
-              placeholder="Ex: Portefeuille perdu"
-              value={title}
-              onChangeText={setTitle}
-              editable={!loading}
-            />
+          <View style={styles.cardSection}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={[styles.sectionIconCircle, { backgroundColor: 'rgba(0,106,78,0.12)' }]}>
+                <Ionicons name="person-circle-outline" size={18} color={Colors.light.togoGreen} />
+              </View>
+              <View style={styles.sectionHeaderTextWrap}>
+                <ThemedText style={styles.sectionHeaderTitle}>Contexte</ThemedText>
+                <ThemedText style={styles.sectionHeaderSubtitle}>Choisis qui publie cette alerte</ThemedText>
+              </View>
+            </View>
+            <PublishContextSelector selectedContext={publishContext} onContextChange={setPublishContext} />
           </View>
 
-          {/* Description */}
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>
-              Description <ThemedText style={styles.required}>*</ThemedText>
-            </ThemedText>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Décrivez en détail..."
-              value={description}
-              onChangeText={setDescription}
-              multiline
-              numberOfLines={4}
-              editable={!loading}
-            />
+          {/* Résumé */}
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryItem}>
+                <Ionicons name="pricetag-outline" size={14} color="#64748b" />
+                <ThemedText style={styles.summaryText}>{categoryMetadata.mainCategory.toUpperCase()}</ThemedText>
+              </View>
+              <View style={styles.summaryDivider} />
+              <View style={styles.summaryItem}>
+                <Ionicons name="images-outline" size={14} color="#64748b" />
+                <ThemedText style={styles.summaryText}>{imageUris.length}/5</ThemedText>
+              </View>
+              <View style={styles.summaryDivider} />
+              <View style={styles.summaryItem}>
+                <Ionicons name="location-outline" size={14} color="#64748b" />
+                <ThemedText style={styles.summaryText}>{location ? 'OK' : 'Optionnel'}</ThemedText>
+              </View>
+            </View>
           </View>
 
-          {/* Catégorie avancée */}
-          <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle}>Catégorie</ThemedText>
+          {/* Infos */}
+          <View style={styles.cardSection}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={[styles.sectionIconCircle, { backgroundColor: 'rgba(59,130,246,0.12)' }]}
+              >
+                <Ionicons name="document-text-outline" size={18} color="#2563eb" />
+              </View>
+              <View style={styles.sectionHeaderTextWrap}>
+                <ThemedText style={styles.sectionHeaderTitle}>Informations</ThemedText>
+                <ThemedText style={styles.sectionHeaderSubtitle}>Titre et description sont obligatoires</ThemedText>
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.label}>
+                Titre <ThemedText style={styles.required}>*</ThemedText>
+              </ThemedText>
+              <TextInput
+                style={styles.input}
+                placeholder="Ex: Téléphone perdu"
+                placeholderTextColor="#94a3b8"
+                value={title}
+                onChangeText={setTitle}
+                editable={!loading}
+                returnKeyType="next"
+              />
+              <ThemedText style={styles.helperText}>Court et précis. Exemple: "Carte d'identité perdue"</ThemedText>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.label}>
+                Description <ThemedText style={styles.required}>*</ThemedText>
+              </ThemedText>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Décris la situation, le lieu, la date, signes distinctifs..."
+                placeholderTextColor="#94a3b8"
+                value={description}
+                onChangeText={setDescription}
+                multiline
+                numberOfLines={5}
+                editable={!loading}
+              />
+            </View>
+          </View>
+
+          {/* Catégorie */}
+          <View style={styles.cardSection}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={[styles.sectionIconCircle, { backgroundColor: 'rgba(245,158,11,0.14)' }]}>
+                <Ionicons name="grid-outline" size={18} color="#b45309" />
+              </View>
+              <View style={styles.sectionHeaderTextWrap}>
+                <ThemedText style={styles.sectionHeaderTitle}>Catégorie</ThemedText>
+                <ThemedText style={styles.sectionHeaderSubtitle}>Aide à classer correctement la publication</ThemedText>
+              </View>
+            </View>
             <CategorySelector value={categoryMetadata} onChange={setCategoryMetadata} />
           </View>
 
           {/* Localisation */}
-          <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle}>Localisation (optionnel)</ThemedText>
+          <View style={styles.cardSection}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={[styles.sectionIconCircle, { backgroundColor: 'rgba(16,185,129,0.12)' }]}>
+                <Ionicons name="location-outline" size={18} color="#059669" />
+              </View>
+              <View style={styles.sectionHeaderTextWrap}>
+                <ThemedText style={styles.sectionHeaderTitle}>Localisation</ThemedText>
+                <ThemedText style={styles.sectionHeaderSubtitle}>Optionnel, mais utile pour retrouver rapidement</ThemedText>
+              </View>
+            </View>
             <LocationPicker value={location} onChange={setLocation} showMap={true} />
           </View>
 
-          {/* Images */}
-          <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle}>Photos (max 5)</ThemedText>
-            <TouchableOpacity style={styles.uploadButton} onPress={handlePickImages} disabled={loading || imageUris.length >= 5}>
-              <Ionicons name="camera-outline" size={32} color={imageUris.length >= 5 ? '#94a3b8' : Colors.light.togoGreen} />
-              <ThemedText style={styles.uploadText}>
-                {imageUris.length >= 5 ? 'Maximum 5 photos' : 'Ajouter des photos'}
-              </ThemedText>
-              <ThemedText style={styles.uploadHint}>
-                {imageUris.length}/5 photos
-              </ThemedText>
+          {/* Photos */}
+          <View style={styles.cardSection}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={[styles.sectionIconCircle, { backgroundColor: 'rgba(148,163,184,0.18)' }]}>
+                <Ionicons name="images-outline" size={18} color="#475569" />
+              </View>
+              <View style={styles.sectionHeaderTextWrap}>
+                <ThemedText style={styles.sectionHeaderTitle}>Photos</ThemedText>
+                <ThemedText style={styles.sectionHeaderSubtitle}>Jusqu'à 5 images (optionnel)</ThemedText>
+              </View>
+              <View style={{ flex: 1 }} />
+              <View style={styles.counterPill}>
+                <ThemedText style={styles.counterPillText}>{imageUris.length}/5</ThemedText>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.uploadButton, imageUris.length >= 5 && styles.uploadButtonDisabled]}
+              onPress={handlePickImages}
+              disabled={loading || imageUris.length >= 5}
+              activeOpacity={0.85}
+            >
+              <View style={styles.uploadIconCircle}>
+                <Ionicons
+                  name="camera-outline"
+                  size={22}
+                  color={imageUris.length >= 5 ? '#94a3b8' : Colors.light.togoGreen}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <ThemedText style={styles.uploadText}>
+                  {imageUris.length >= 5 ? 'Maximum atteint' : 'Ajouter des photos'}
+                </ThemedText>
+                <ThemedText style={styles.uploadHint}>Les photos améliorent la visibilité de l'alerte</ThemedText>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
             </TouchableOpacity>
 
             {imageUris.length > 0 && (
@@ -284,8 +391,9 @@ export default function DeclareScreen() {
                       style={styles.removeButton}
                       onPress={() => removeImage(index)}
                       disabled={loading}
+                      activeOpacity={0.9}
                     >
-                      <Ionicons name="close-circle" size={24} color="#ef4444" />
+                      <Ionicons name="close" size={16} color="#0f172a" />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -294,33 +402,57 @@ export default function DeclareScreen() {
           </View>
 
           {/* Contact */}
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>Téléphone de contact (optionnel)</ThemedText>
-            <TextInput
-              style={styles.input}
-              placeholder="+228 XX XX XX XX"
-              value={contactPhone}
-              onChangeText={setContactPhone}
-              keyboardType="phone-pad"
-              editable={!loading}
-            />
+          <View style={styles.cardSection}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={[styles.sectionIconCircle, { backgroundColor: 'rgba(236,72,153,0.12)' }]}>
+                <Ionicons name="call-outline" size={18} color="#db2777" />
+              </View>
+              <View style={styles.sectionHeaderTextWrap}>
+                <ThemedText style={styles.sectionHeaderTitle}>Contact</ThemedText>
+                <ThemedText style={styles.sectionHeaderSubtitle}>Optionnel, facilite la prise de contact</ThemedText>
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.label}>Téléphone de contact</ThemedText>
+              <TextInput
+                style={styles.input}
+                placeholder="+228 XX XX XX XX"
+                placeholderTextColor="#94a3b8"
+                value={contactPhone}
+                onChangeText={setContactPhone}
+                keyboardType="phone-pad"
+                editable={!loading}
+              />
+            </View>
           </View>
 
           {/* Bouton Publier */}
           <TouchableOpacity
-            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+            style={[styles.submitButton, (!canSubmit || loading) && styles.submitButtonDisabled]}
             onPress={handleSubmit}
-            disabled={loading}
-            activeOpacity={0.8}
+            disabled={!canSubmit}
+            activeOpacity={0.85}
           >
             {loading ? (
               <ActivityIndicator color="#ffffff" />
             ) : (
-              <ThemedText style={styles.submitText}>Publier</ThemedText>
+              <>
+                <Ionicons name="paper-plane" size={18} color="#ffffff" />
+                <ThemedText style={styles.submitText}>Publier</ThemedText>
+              </>
             )}
           </TouchableOpacity>
 
-          <View style={{ height: 40 }} />
+          {!user ? (
+            <ThemedText style={styles.bottomHint}>Connexion requise pour publier.</ThemedText>
+          ) : !title.trim() || !description.trim() ? (
+            <ThemedText style={styles.bottomHint}>Renseigne au moins le titre et la description.</ThemedText>
+          ) : !validateCategoryMetadata(categoryMetadata) ? (
+            <ThemedText style={styles.bottomHint}>Complète la catégorie pour continuer.</ThemedText>
+          ) : null}
+
+          <View style={{ height: 60 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </ThemedView>
@@ -330,83 +462,167 @@ export default function DeclareScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 12,
+    padding: 16,
+    backgroundColor: '#f8fafc',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 16,
+    gap: 14,
+    marginBottom: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
   },
   title: {
     flex: 1,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0f172a',
+    letterSpacing: 0.2,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 20,
+    paddingBottom: 32,
   },
-  section: {
-    marginBottom: 20,
+  cardSection: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
+    marginBottom: 14,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0f172a',
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     marginBottom: 12,
   },
+  sectionIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionHeaderTextWrap: {
+    flex: 1,
+  },
+  sectionHeaderTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  sectionHeaderSubtitle: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  summaryCard: {
+    backgroundColor: '#f1f5f9',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 14,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  summaryItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  summaryDivider: {
+    width: 1,
+    height: 18,
+    backgroundColor: '#e2e8f0',
+  },
+  summaryText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155',
+  },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: 14,
   },
   label: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#64748b',
-    marginBottom: 6,
+    color: '#475569',
+    marginBottom: 8,
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginTop: 8,
   },
   required: {
-    color: '#ef4444',
+    color: '#dc2626',
   },
   input: {
     backgroundColor: '#ffffff',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
     color: '#0f172a',
   },
   textArea: {
-    minHeight: 100,
+    minHeight: 132,
     textAlignVertical: 'top',
+    paddingTop: 14,
   },
   uploadButton: {
-    backgroundColor: '#f8fafc',
-    borderWidth: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
-    borderStyle: 'dashed',
-    borderRadius: 12,
-    padding: 24,
+    borderRadius: 16,
+    padding: 14,
+  },
+  uploadButtonDisabled: {
+    opacity: 0.6,
+  },
+  uploadIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,106,78,0.10)',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
   },
   uploadText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#64748b',
+    fontWeight: '700',
+    color: '#0f172a',
   },
   uploadHint: {
     fontSize: 12,
     color: '#94a3b8',
+    marginTop: 4,
   },
   imageGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 12,
+    gap: 12,
+    marginTop: 16,
   },
   imageContainer: {
     width: '48%',
@@ -416,29 +632,67 @@ const styles = StyleSheet.create({
   imagePreview: {
     width: '100%',
     height: '100%',
-    borderRadius: 12,
-    backgroundColor: '#f1f5f9',
+    borderRadius: 16,
+    backgroundColor: '#e2e8f0',
   },
   removeButton: {
     position: 'absolute',
-    top: 4,
-    right: 4,
+    top: 8,
+    right: 8,
     backgroundColor: '#ffffff',
     borderRadius: 12,
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  counterPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  counterPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155',
   },
   submitButton: {
     backgroundColor: Colors.light.togoGreen,
-    borderRadius: 12,
-    paddingVertical: 16,
+    borderRadius: 16,
+    paddingVertical: 18,
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: 32,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    shadowColor: Colors.light.togoGreen,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
   },
   submitButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
+    shadowOpacity: 0,
   },
   submitText: {
     fontSize: 16,
     fontWeight: '700',
     color: '#ffffff',
+    letterSpacing: 0.3,
+  },
+  bottomHint: {
+    marginTop: 10,
+    fontSize: 12,
+    color: '#64748b',
+    textAlign: 'center',
   },
 });

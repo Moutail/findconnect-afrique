@@ -225,6 +225,7 @@ export default function ReportEditScreen() {
               { paddingBottom: Math.max(160, insets.bottom + 160) },
             ]}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.formCard}>

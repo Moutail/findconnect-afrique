@@ -29,6 +29,17 @@ export default function MapScreen() {
   const getUserLocation = async () => {
     setLocationLoading(true);
     try {
+      // Vérifier si les services de localisation sont disponibles
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!servicesEnabled) {
+        Alert.alert(
+          'Localisation indisponible',
+          'Les services de localisation ne sont pas disponibles sur cet appareil. La carte affichera les alertes sans votre position.'
+        );
+        setLocationLoading(false);
+        return;
+      }
+
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert(
@@ -48,7 +59,7 @@ export default function MapScreen() {
         longitude: location.coords.longitude,
       });
     } catch (error) {
-      console.error('Error getting location:', error);
+      // Erreur silencieuse - la carte fonctionne sans position utilisateur
     } finally {
       setLocationLoading(false);
     }
@@ -193,65 +204,74 @@ export default function MapScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f8fafc',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
   },
   loadingText: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#64748b',
+    fontWeight: '500',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: '#f1f5f9',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
   title: {
     fontSize: 20,
     fontWeight: '700',
+    color: '#0f172a',
+    letterSpacing: 0.2,
   },
   headerRight: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
   },
   locationButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     backgroundColor: '#f8fafc',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
   },
   filterButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     backgroundColor: '#f8fafc',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
   },
   filterContainer: {
-    padding: 12,
+    padding: 16,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: '#f1f5f9',
   },
   mapContainer: {
     flex: 1,

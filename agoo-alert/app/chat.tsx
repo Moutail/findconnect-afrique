@@ -96,6 +96,8 @@ export default function ChatScreen() {
     return () => unsubscribe();
   }, [reportId]);
 
+  const keyboardOffset = Math.max(0, insets.top + 44);
+
   useEffect(() => {
     return () => {
       if (recording) {
@@ -105,7 +107,7 @@ export default function ChatScreen() {
         previewSound.unloadAsync().catch(() => undefined);
       }
     };
-  }, [recording, previewSound]);
+  }, [loading, recording, previewSound]);
 
   const uploadBlobToStorage = async (blob: Blob, path: string, contentType: string) => {
     const objectRef = ref(storage, path);
@@ -434,10 +436,9 @@ export default function ChatScreen() {
           data={messages}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
-          contentContainerStyle={[
-            styles.messagesList,
-            { paddingBottom: Math.max(120, insets.bottom + 120) }
-          ]}
+          contentContainerStyle={{ paddingBottom: Math.max(140, insets.bottom + 140) }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
         />
       )}
 
@@ -501,11 +502,7 @@ export default function ChatScreen() {
         </View>
       ) : null}
 
-      <KeyboardAvoidingView
-        style={styles.inputWrap}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={keyboardOffset}>
         <View style={[styles.inputRow, { paddingBottom: Math.max(10, insets.bottom + 10) }]}>
           <TouchableOpacity
             style={[styles.mediaButton, (!!pendingImageUri || !!pendingAudioUri) && styles.mediaButtonActive]}
@@ -560,75 +557,90 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 12,
+    padding: 16,
+    backgroundColor: '#f8fafc',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 16,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
   },
   backIcon: {
-    marginRight: 8,
+    marginRight: 12,
+    padding: 4,
   },
   title: {
     flex: 1,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0f172a',
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 12,
   },
   helper: {
-    fontSize: 13,
+    fontSize: 14,
+    color: '#64748b',
   },
   messagesList: {
-    paddingVertical: 8,
-    gap: 4,
+    paddingVertical: 12,
+    gap: 6,
   },
   messageRow: {
     flexDirection: 'row',
-    paddingVertical: 2,
+    paddingVertical: 3,
     paddingHorizontal: 4,
+    alignItems: 'flex-end',
   },
   messageRowMe: {
     justifyContent: 'flex-end',
   },
   messageRowOther: {
     justifyContent: 'flex-start',
+    gap: 8,
   },
   bubble: {
-    maxWidth: '75%',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 14,
+    maxWidth: '78%',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
   },
   bubbleMe: {
     backgroundColor: Colors.light.togoGreen,
+    borderBottomRightRadius: 6,
   },
   bubbleOther: {
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#ffffff',
+    borderBottomLeftRadius: 6,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   bubbleText: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 22,
   },
   bubbleTextMe: {
     color: '#ffffff',
   },
   bubbleTextOther: {
-    color: '#0f172a',
+    color: '#1e293b',
   },
   bubbleImage: {
-    width: 220,
+    width: 240,
     height: 180,
-    borderRadius: 12,
+    borderRadius: 14,
   },
   audioRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 4,
+    gap: 12,
+    paddingVertical: 6,
   },
   audioText: {
     fontSize: 14,
@@ -643,22 +655,27 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 10,
-    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingHorizontal: 16,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: '#f1f5f9',
     backgroundColor: '#ffffff',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 4,
   },
   mediaButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 106, 78, 0.22)',
-    backgroundColor: 'rgba(0, 106, 78, 0.08)',
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+    marginRight: 10,
   },
   mediaButtonActive: {
     backgroundColor: Colors.light.togoGreen,
@@ -666,24 +683,24 @@ const styles = StyleSheet.create({
   },
   pendingWrap: {
     position: 'absolute',
-    left: 12,
-    right: 12,
+    left: 16,
+    right: 16,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    borderRadius: 16,
-    padding: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    borderRadius: 20,
+    padding: 14,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 8,
   },
   pendingImage: {
     width: '100%',
-    height: 180,
-    borderRadius: 12,
-    backgroundColor: '#f1f5f9',
+    height: 200,
+    borderRadius: 16,
+    backgroundColor: '#e2e8f0',
   },
   pendingAudioRow: {
     flexDirection: 'row',
@@ -736,20 +753,26 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#d4d4d8',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 8,
-    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginRight: 10,
+    backgroundColor: '#f8fafc',
+    fontSize: 15,
   },
   sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     backgroundColor: Colors.light.togoGreen,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: Colors.light.togoGreen,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
 });

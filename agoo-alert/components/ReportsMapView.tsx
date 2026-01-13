@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import MapView, { Marker, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { Colors } from '@/constants/theme';
+import Constants from 'expo-constants';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 import {
@@ -41,6 +44,8 @@ export function ReportsMapView({ reports, userLocation, onReportPress, loading =
   const router = useRouter();
   const [mapRegion, setMapRegion] = useState(DEFAULT_MAP_REGION);
 
+  const isExpoGoAndroid = Platform.OS === 'android' && Constants.appOwnership === 'expo';
+
   // Filtrer les rapports avec localisation valide
   const reportsWithLocation = reports.filter(
     (report) => report.location?.coordinates && isValidCoordinates(report.location.coordinates)
@@ -68,7 +73,7 @@ export function ReportsMapView({ reports, userLocation, onReportPress, loading =
     if (onReportPress) {
       onReportPress(reportId);
     } else {
-      router.push(`/report/${reportId}`);
+      router.push({ pathname: '/report-detail', params: { id: reportId } });
     }
   };
 
@@ -78,6 +83,35 @@ export function ReportsMapView({ reports, userLocation, onReportPress, loading =
         <ActivityIndicator size="large" color="#006A4E" />
         <ThemedText style={styles.loadingText}>Chargement de la carte...</ThemedText>
       </View>
+    );
+  }
+
+  if (isExpoGoAndroid) {
+    return (
+      <ThemedView style={styles.fallbackContainer}>
+        <View style={styles.fallbackCard}>
+          <View style={styles.fallbackIconWrap}>
+            <Ionicons name="map-outline" size={26} color={Colors.light.togoGreen} />
+          </View>
+          <ThemedText style={styles.fallbackTitle}>Carte indisponible</ThemedText>
+          <ThemedText style={styles.fallbackText}>
+            Sur Android, l'affichage de la carte dans Expo Go peut ne pas fonctionner si Google Play Services n'est pas
+            disponible sur l'appareil.
+          </ThemedText>
+          <View style={styles.fallbackRow}>
+            <Ionicons name="checkmark-circle-outline" size={16} color="#16a34a" />
+            <ThemedText style={styles.fallbackHint}>Teste sur un téléphone Android avec Google Play Services</ThemedText>
+          </View>
+          <View style={styles.fallbackRow}>
+            <Ionicons name="checkmark-circle-outline" size={16} color="#16a34a" />
+            <ThemedText style={styles.fallbackHint}>Ou utilise un émulateur Android "Google Play"</ThemedText>
+          </View>
+          <View style={styles.fallbackRow}>
+            <Ionicons name="checkmark-circle-outline" size={16} color="#16a34a" />
+            <ThemedText style={styles.fallbackHint}>Ou crée une build de développement (dev client)</ThemedText>
+          </View>
+        </View>
+      </ThemedView>
     );
   }
 
@@ -133,12 +167,15 @@ export function ReportsMapView({ reports, userLocation, onReportPress, loading =
               <Callout tooltip onPress={() => handleMarkerPress(report.id)}>
                 <View style={styles.callout}>
                   <View style={styles.calloutHeader}>
-                    <ThemedText style={styles.calloutCategory}>
-                      {MAIN_CATEGORY_ICONS[report.mainCategory]} {report.mainCategory}
-                    </ThemedText>
+                    <View style={styles.calloutCategoryBadge}>
+                      <ThemedText style={styles.calloutCategory}>
+                        {report.mainCategory}
+                      </ThemedText>
+                    </View>
                     {report.isOfficialPost && (
                       <View style={styles.officialBadge}>
-                        <ThemedText style={styles.officialBadgeText}>✓ Officiel</ThemedText>
+                        <Ionicons name="checkmark-circle" size={12} color="#1d4ed8" />
+                        <ThemedText style={styles.officialBadgeText}>Officiel</ThemedText>
                       </View>
                     )}
                   </View>
@@ -148,15 +185,21 @@ export function ReportsMapView({ reports, userLocation, onReportPress, loading =
                   </ThemedText>
 
                   {report.organizationName && (
-                    <ThemedText style={styles.calloutOrg} numberOfLines={1}>
-                      📍 {report.organizationName}
-                    </ThemedText>
+                    <View style={styles.calloutRow}>
+                      <Ionicons name="business-outline" size={12} color={Colors.light.togoGreen} />
+                      <ThemedText style={styles.calloutOrg} numberOfLines={1}>
+                        {report.organizationName}
+                      </ThemedText>
+                    </View>
                   )}
 
                   {report.location?.address && (
-                    <ThemedText style={styles.calloutAddress} numberOfLines={1}>
-                      📍 {report.location.address}
-                    </ThemedText>
+                    <View style={styles.calloutRow}>
+                      <Ionicons name="location-outline" size={12} color="#64748b" />
+                      <ThemedText style={styles.calloutAddress} numberOfLines={1}>
+                        {report.location.address}
+                      </ThemedText>
+                    </View>
                   )}
 
                   {report.location?.city && (
@@ -166,11 +209,15 @@ export function ReportsMapView({ reports, userLocation, onReportPress, loading =
                   )}
 
                   {distance !== null && (
-                    <ThemedText style={styles.calloutDistance}>📏 À {formatDistance(distance)}</ThemedText>
+                    <View style={styles.calloutDistanceRow}>
+                      <Ionicons name="navigate-outline" size={12} color="#1d4ed8" />
+                      <ThemedText style={styles.calloutDistance}>A {formatDistance(distance)}</ThemedText>
+                    </View>
                   )}
 
                   <View style={styles.calloutFooter}>
-                    <ThemedText style={styles.calloutTap}>👆 Appuyer pour voir les détails</ThemedText>
+                    <Ionicons name="hand-left-outline" size={12} color="#94a3b8" />
+                    <ThemedText style={styles.calloutTap}>Appuyer pour voir les details</ThemedText>
                   </View>
                 </View>
               </Callout>
@@ -179,9 +226,12 @@ export function ReportsMapView({ reports, userLocation, onReportPress, loading =
         })}
       </MapView>
 
-      {/* Légende */}
+      {/* Legende */}
       <View style={styles.legend}>
-        <ThemedText style={styles.legendTitle}>Légende</ThemedText>
+        <View style={styles.legendHeader}>
+          <Ionicons name="information-circle-outline" size={14} color="#64748b" />
+          <ThemedText style={styles.legendTitle}>Legende</ThemedText>
+        </View>
         <View style={styles.legendItems}>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: '#ef4444' }]} />
@@ -189,7 +239,7 @@ export function ReportsMapView({ reports, userLocation, onReportPress, loading =
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: '#10b981' }]} />
-            <ThemedText style={styles.legendText}>Trouvé</ThemedText>
+            <ThemedText style={styles.legendText}>Trouve</ThemedText>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: '#8b5cf6' }]} />
@@ -202,8 +252,9 @@ export function ReportsMapView({ reports, userLocation, onReportPress, loading =
         </View>
       </View>
 
-      {/* Compteur de résultats */}
+      {/* Compteur de resultats */}
       <View style={styles.counter}>
+        <Ionicons name="location" size={16} color={Colors.light.togoGreen} />
         <ThemedText style={styles.counterText}>
           {reportsWithLocation.length} publication{reportsWithLocation.length > 1 ? 's' : ''} sur la carte
         </ThemedText>
@@ -215,6 +266,60 @@ export function ReportsMapView({ reports, userLocation, onReportPress, loading =
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  fallbackContainer: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  fallbackCard: {
+    width: '100%',
+    maxWidth: 520,
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  fallbackIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0, 106, 78, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  fallbackTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 6,
+  },
+  fallbackText: {
+    fontSize: 13,
+    color: '#64748b',
+    lineHeight: 19,
+    marginBottom: 12,
+  },
+  fallbackRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 6,
+  },
+  fallbackHint: {
+    fontSize: 13,
+    color: '#334155',
+    flex: 1,
   },
   map: {
     flex: 1,
@@ -223,11 +328,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
+    backgroundColor: '#f8fafc',
   },
   loadingText: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#64748b',
+    fontWeight: '500',
   },
   userMarker: {
     width: 24,
@@ -262,133 +369,187 @@ const styles = StyleSheet.create({
   },
   callout: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 12,
-    width: 250,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    borderRadius: 16,
+    padding: 14,
+    width: 260,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
   },
   calloutHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: 10,
+  },
+  calloutCategoryBadge: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   calloutCategory: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#64748b',
+    fontWeight: '700',
+    color: '#475569',
     textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   officialBadge: {
     backgroundColor: '#dbeafe',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   officialBadgeText: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '700',
     color: '#1d4ed8',
   },
   calloutTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: '#0f172a',
-    marginBottom: 6,
+    marginBottom: 10,
+    lineHeight: 20,
+  },
+  calloutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
   },
   calloutOrg: {
     fontSize: 12,
     fontWeight: '600',
     color: '#006A4E',
-    marginBottom: 4,
+    flex: 1,
   },
   calloutAddress: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#64748b',
-    marginBottom: 2,
+    flex: 1,
   },
   calloutCity: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#64748b',
-    marginBottom: 6,
+    marginBottom: 8,
+    marginLeft: 18,
+  },
+  calloutDistanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
   },
   calloutDistance: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     color: '#1d4ed8',
-    marginBottom: 8,
   },
   calloutFooter: {
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-    paddingTop: 8,
+    borderTopColor: '#f1f5f9',
+    paddingTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
   },
   calloutTap: {
-    fontSize: 10,
-    color: '#64748b',
-    textAlign: 'center',
-    fontStyle: 'italic',
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: '500',
   },
   legend: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 12,
-    padding: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    top: 12,
+    right: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    padding: 12,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  legendHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
   },
   legendTitle: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#0f172a',
-    marginBottom: 6,
+    color: '#1e293b',
   },
   legendItems: {
-    gap: 4,
+    gap: 8,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    borderWidth: 1,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
     borderColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
   legendText: {
-    fontSize: 10,
-    color: '#64748b',
+    fontSize: 12,
+    color: '#475569',
+    fontWeight: '500',
   },
   counter: {
     position: 'absolute',
-    bottom: 10,
-    left: 10,
-    right: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 12,
-    padding: 10,
+    bottom: 12,
+    left: 12,
+    right: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    padding: 14,
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
   },
   counterText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#0f172a',
+    color: '#1e293b',
   },
 });

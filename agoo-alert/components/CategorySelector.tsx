@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from './themed-text';
@@ -6,7 +6,6 @@ import {
   MainCategory,
   CategoryMetadata,
   MAIN_CATEGORY_LABELS,
-  MAIN_CATEGORY_ICONS,
   MAIN_CATEGORY_COLORS,
   getSubCategoriesForMain,
   getSubCategoryLabel,
@@ -34,11 +33,58 @@ interface CategorySelectorProps {
 }
 
 export function CategorySelector({ value, onChange }: CategorySelectorProps) {
-  const [showMainPicker, setShowMainPicker] = useState(false);
   const [showSubPicker, setShowSubPicker] = useState(false);
 
   const mainCategories = Object.keys(MAIN_CATEGORY_LABELS) as MainCategory[];
   const subCategories = getSubCategoriesForMain(value.mainCategory);
+
+  const subCategoryIconName = (subCategory: string): keyof typeof Ionicons.glyphMap => {
+    const map: Record<string, keyof typeof Ionicons.glyphMap> = {
+      wallet: 'wallet-outline',
+      keys: 'key-outline',
+      phone: 'phone-portrait-outline',
+      bag: 'bag-handle-outline',
+      jewelry: 'diamond-outline',
+      clothing: 'shirt-outline',
+
+      smartphone: 'phone-portrait-outline',
+      laptop: 'laptop-outline',
+      tablet: 'tablet-portrait-outline',
+      camera: 'camera-outline',
+      headphones: 'headset-outline',
+
+      watch: 'watch-outline',
+      glasses: 'glasses-outline',
+      umbrella: 'umbrella-outline',
+      hat: 'sparkles-outline',
+      shoes: 'footsteps-outline',
+
+      id_card: 'card-outline',
+      passport: 'airplane-outline',
+      drivers_license: 'id-card-outline',
+      birth_certificate: 'document-outline',
+      diploma: 'school-outline',
+      bank_card: 'card-outline',
+      other_document: 'document-text-outline',
+
+      car: 'car-outline',
+      motorcycle: 'bicycle-outline',
+      bicycle: 'bicycle-outline',
+      scooter: 'bicycle-outline',
+      other_vehicle: 'car-sport-outline',
+
+      dog: 'paw-outline',
+      cat: 'paw-outline',
+      bird: 'leaf-outline',
+      other_pet: 'paw-outline',
+
+      other_personal: 'ellipsis-horizontal-circle-outline',
+      other_electronics: 'ellipsis-horizontal-circle-outline',
+      other_accessory: 'ellipsis-horizontal-circle-outline',
+    };
+
+    return map[subCategory] || 'pricetag-outline';
+  };
 
   const handleMainCategoryChange = (category: MainCategory) => {
     onChange({
@@ -50,52 +96,106 @@ export function CategorySelector({ value, onChange }: CategorySelectorProps) {
       vehicleDetails: undefined,
       documentDetails: undefined,
     });
-    setShowMainPicker(false);
   };
 
   const handleSubCategoryChange = (subCategory: string) => {
-    onChange({ ...value, subCategory });
+    const nextValue: CategoryMetadata = { ...value, subCategory };
+
+    if (value.mainCategory === 'pet') {
+      const normalized = (subCategory === 'other_pet' ? 'other' : subCategory) as any;
+      nextValue.petDetails = { ...(value.petDetails || ({} as any)), type: normalized };
+    }
+
+    if (value.mainCategory === 'vehicle') {
+      const normalized = (subCategory === 'other_vehicle' ? 'other' : subCategory) as any;
+      nextValue.vehicleDetails = { ...(value.vehicleDetails || ({} as any)), type: normalized };
+    }
+
+    if (value.mainCategory === 'document') {
+      nextValue.documentDetails = {
+        ...(value.documentDetails || {}),
+        documentType: getSubCategoryLabel(subCategory),
+      };
+    }
+
+    onChange(nextValue);
     setShowSubPicker(false);
   };
 
   return (
     <View style={styles.container}>
       <ThemedText style={styles.label}>Catégorie principale</ThemedText>
-      <TouchableOpacity
-        style={[styles.selector, { borderColor: MAIN_CATEGORY_COLORS[value.mainCategory] }]}
-        onPress={() => setShowMainPicker(!showMainPicker)}
-      >
-        <View style={styles.selectorContent}>
-          <ThemedText style={styles.icon}>{MAIN_CATEGORY_ICONS[value.mainCategory]}</ThemedText>
-          <ThemedText style={styles.selectorText}>{MAIN_CATEGORY_LABELS[value.mainCategory]}</ThemedText>
-        </View>
-        <Ionicons name="chevron-down" size={20} color="#64748b" />
-      </TouchableOpacity>
+      <View style={styles.mainGrid}>
+        {mainCategories.map((category) => {
+          const isActive = value.mainCategory === category;
+          const iconMap: Record<MainCategory, keyof typeof Ionicons.glyphMap> = {
+            lost: 'help-circle-outline',
+            found: 'checkmark-circle-outline',
+            person: 'person-outline',
+            pet: 'paw-outline',
+            vehicle: 'car-outline',
+            document: 'document-text-outline',
+            electronics: 'phone-portrait-outline',
+            other: 'cube-outline',
+          };
 
-      {showMainPicker && (
-        <View style={styles.dropdown}>
-          {mainCategories.map((category) => (
+          return (
             <TouchableOpacity
               key={category}
-              style={[styles.dropdownItem, value.mainCategory === category && styles.dropdownItemActive]}
+              style={[
+                styles.mainButton,
+                { borderColor: MAIN_CATEGORY_COLORS[category] },
+                isActive && [styles.mainButtonActive, { backgroundColor: MAIN_CATEGORY_COLORS[category] }],
+              ]}
               onPress={() => handleMainCategoryChange(category)}
+              activeOpacity={0.85}
             >
-              <ThemedText style={styles.icon}>{MAIN_CATEGORY_ICONS[category]}</ThemedText>
-              <ThemedText style={styles.dropdownItemText}>{MAIN_CATEGORY_LABELS[category]}</ThemedText>
+              <Ionicons name={iconMap[category]} size={20} color={isActive ? '#ffffff' : MAIN_CATEGORY_COLORS[category]} />
+              <ThemedText
+                numberOfLines={1}
+                style={[styles.mainButtonText, isActive && styles.mainButtonTextActive]}
+              >
+                {MAIN_CATEGORY_LABELS[category]}
+              </ThemedText>
             </TouchableOpacity>
-          ))}
-        </View>
-      )}
+          );
+        })}
+      </View>
 
       {subCategories.length > 0 && (
         <>
-          <ThemedText style={styles.label}>Sous-catégorie (optionnel)</ThemedText>
-          <TouchableOpacity style={styles.selector} onPress={() => setShowSubPicker(!showSubPicker)}>
-            <ThemedText style={styles.selectorText}>
-              {value.subCategory ? getSubCategoryLabel(value.subCategory) : 'Sélectionner...'}
-            </ThemedText>
-            <Ionicons name="chevron-down" size={20} color="#64748b" />
-          </TouchableOpacity>
+          <View style={styles.subHeaderRow}>
+            <ThemedText style={styles.label}>Sous-catégorie</ThemedText>
+            <TouchableOpacity onPress={() => setShowSubPicker((s) => !s)} activeOpacity={0.85}>
+              <View style={styles.subToggle}>
+                <Ionicons name="list-outline" size={16} color="#64748b" />
+                <ThemedText style={styles.subToggleText}>Tout voir</ThemedText>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subRow}>
+            {subCategories.map((subCat) => {
+              const isActive = value.subCategory === subCat;
+              return (
+                <TouchableOpacity
+                  key={subCat}
+                  style={[styles.subChip, isActive && styles.subChipActive]}
+                  onPress={() => handleSubCategoryChange(subCat)}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons
+                    name={subCategoryIconName(subCat)}
+                    size={16}
+                    color={isActive ? '#ffffff' : '#334155'}
+                  />
+                  <ThemedText numberOfLines={1} style={[styles.subChipText, isActive && styles.subChipTextActive]}>
+                    {getSubCategoryLabel(subCat)}
+                  </ThemedText>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
 
           {showSubPicker && (
             <ScrollView style={styles.dropdown} nestedScrollEnabled>
@@ -105,6 +205,7 @@ export function CategorySelector({ value, onChange }: CategorySelectorProps) {
                   style={[styles.dropdownItem, value.subCategory === subCat && styles.dropdownItemActive]}
                   onPress={() => handleSubCategoryChange(subCat)}
                 >
+                  <Ionicons name={subCategoryIconName(subCat)} size={18} color="#334155" />
                   <ThemedText style={styles.dropdownItemText}>{getSubCategoryLabel(subCat)}</ThemedText>
                 </TouchableOpacity>
               ))}
@@ -138,51 +239,146 @@ function ItemDetailsForm({ value, onChange }: CategorySelectorProps) {
     });
   };
 
+  const detailsPreset = useMemo(() => {
+    const sub = value.subCategory;
+
+    const electronics = new Set(['phone', 'smartphone', 'laptop', 'tablet', 'camera', 'headphones']);
+    const personalWithBrand = new Set(['wallet', 'bag', 'jewelry', 'watch', 'glasses', 'shoes', 'clothing']);
+
+    if (sub && electronics.has(sub)) {
+      return {
+        showBrand: true,
+        showModel: true,
+        showColor: true,
+        showCondition: true,
+        showSerial: true,
+        showDistinctive: true,
+      };
+    }
+
+    if (sub === 'keys' || sub === 'umbrella' || sub === 'hat') {
+      return {
+        showBrand: false,
+        showModel: false,
+        showColor: true,
+        showCondition: false,
+        showSerial: false,
+        showDistinctive: true,
+      };
+    }
+
+    if (sub && personalWithBrand.has(sub)) {
+      return {
+        showBrand: true,
+        showModel: false,
+        showColor: true,
+        showCondition: true,
+        showSerial: false,
+        showDistinctive: true,
+      };
+    }
+
+    return {
+      showBrand: false,
+      showModel: false,
+      showColor: true,
+      showCondition: false,
+      showSerial: false,
+      showDistinctive: true,
+    };
+  }, [value.subCategory]);
+
   return (
     <View style={styles.detailsForm}>
       <ThemedText style={styles.sectionTitle}>Détails de l'objet</ThemedText>
 
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Marque</ThemedText>
-        <TextInput
-          style={styles.input}
-          placeholder="Ex: Samsung, Apple..."
-          value={value.itemDetails?.brand || ''}
-          onChangeText={(text) => updateItemDetails('brand', text)}
-        />
-      </View>
+      {value.subCategory ? (
+        <View style={styles.detailsHintRow}>
+          <Ionicons name="information-circle-outline" size={16} color="#64748b" />
+          <ThemedText style={styles.detailsHintText}>{getSubCategoryLabel(value.subCategory)}</ThemedText>
+        </View>
+      ) : null}
 
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Modèle</ThemedText>
-        <TextInput
-          style={styles.input}
-          placeholder="Ex: Galaxy S21, iPhone 13..."
-          value={value.itemDetails?.model || ''}
-          onChangeText={(text) => updateItemDetails('model', text)}
-        />
-      </View>
+      {detailsPreset.showBrand && (
+        <View style={styles.inputGroup}>
+          <ThemedText style={styles.inputLabel}>Marque</ThemedText>
+          <TextInput
+            style={styles.input}
+            placeholder="Ex: Samsung, Apple..."
+            value={value.itemDetails?.brand || ''}
+            onChangeText={(text) => updateItemDetails('brand', text)}
+          />
+        </View>
+      )}
 
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Couleur</ThemedText>
-        <TextInput
-          style={styles.input}
-          placeholder="Ex: Noir, Rouge..."
-          value={value.itemDetails?.color || ''}
-          onChangeText={(text) => updateItemDetails('color', text)}
-        />
-      </View>
+      {detailsPreset.showModel && (
+        <View style={styles.inputGroup}>
+          <ThemedText style={styles.inputLabel}>Modèle</ThemedText>
+          <TextInput
+            style={styles.input}
+            placeholder="Ex: Galaxy S21, iPhone 13..."
+            value={value.itemDetails?.model || ''}
+            onChangeText={(text) => updateItemDetails('model', text)}
+          />
+        </View>
+      )}
 
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Signes distinctifs</ThemedText>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          placeholder="Rayures, autocollants, gravures..."
-          value={value.itemDetails?.distinctiveFeatures || ''}
-          onChangeText={(text) => updateItemDetails('distinctiveFeatures', text)}
-          multiline
-          numberOfLines={3}
-        />
-      </View>
+      {detailsPreset.showColor && (
+        <View style={styles.inputGroup}>
+          <ThemedText style={styles.inputLabel}>Couleur</ThemedText>
+          <TextInput
+            style={styles.input}
+            placeholder="Ex: Noir, Rouge..."
+            value={value.itemDetails?.color || ''}
+            onChangeText={(text) => updateItemDetails('color', text)}
+          />
+        </View>
+      )}
+
+      {detailsPreset.showCondition && (
+        <View style={styles.inputGroup}>
+          <ThemedText style={styles.inputLabel}>État</ThemedText>
+          <View style={styles.chipGroup}>
+            {(Object.keys(ITEM_CONDITION_LABELS) as ItemCondition[]).map((cond) => (
+              <TouchableOpacity
+                key={cond}
+                style={[styles.chip, value.itemDetails?.condition === cond && styles.chipActive]}
+                onPress={() => updateItemDetails('condition', cond)}
+              >
+                <ThemedText style={[styles.chipText, value.itemDetails?.condition === cond && styles.chipTextActive]}>
+                  {ITEM_CONDITION_LABELS[cond]}
+                </ThemedText>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {detailsPreset.showSerial && (
+        <View style={styles.inputGroup}>
+          <ThemedText style={styles.inputLabel}>Numéro de série (optionnel)</ThemedText>
+          <TextInput
+            style={styles.input}
+            placeholder="IMEI / Serial"
+            value={value.itemDetails?.serialNumber || ''}
+            onChangeText={(text) => updateItemDetails('serialNumber', text)}
+          />
+        </View>
+      )}
+
+      {detailsPreset.showDistinctive && (
+        <View style={styles.inputGroup}>
+          <ThemedText style={styles.inputLabel}>Signes distinctifs</ThemedText>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="Rayures, autocollants, gravures..."
+            value={value.itemDetails?.distinctiveFeatures || ''}
+            onChangeText={(text) => updateItemDetails('distinctiveFeatures', text)}
+            multiline
+            numberOfLines={3}
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -584,28 +780,84 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#64748b',
   },
-  selector: {
+  mainGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  mainButton: {
+    width: '48%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: '#ffffff',
+    borderWidth: 2,
+  },
+  mainButtonActive: {
+    borderColor: 'transparent',
+  },
+  mainButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0f172a',
+    flex: 1,
+  },
+  mainButtonTextActive: {
+    color: '#ffffff',
+  },
+  subHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#ffffff',
-    borderWidth: 2,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    padding: 12,
+    marginTop: 4,
   },
-  selectorContent: {
+  subToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 999,
+  },
+  subToggleText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  subRow: {
+    gap: 10,
+    paddingRight: 6,
+    paddingBottom: 2,
+  },
+  subChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    maxWidth: 220,
   },
-  icon: {
-    fontSize: 20,
+  subChipActive: {
+    backgroundColor: '#006A4E',
+    borderColor: '#006A4E',
   },
-  selectorText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0f172a',
+  subChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  subChipTextActive: {
+    color: '#ffffff',
   },
   dropdown: {
     maxHeight: 250,
@@ -641,6 +893,22 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
     marginTop: 8,
+  },
+  detailsHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  detailsHintText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155',
   },
   sectionTitle: {
     fontSize: 14,

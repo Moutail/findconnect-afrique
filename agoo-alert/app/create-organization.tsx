@@ -60,6 +60,18 @@ export default function CreateOrganizationScreen() {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showRolePicker, setShowRolePicker] = useState(false);
 
+  const canSubmit =
+    !!user &&
+    !loading &&
+    !!name.trim() &&
+    !!legalName.trim() &&
+    !!email.trim() &&
+    !!phone.trim() &&
+    !!street.trim() &&
+    !!city.trim() &&
+    !!region.trim() &&
+    documentUris.length > 0;
+
   const handlePickLogo = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
@@ -76,6 +88,14 @@ export default function CreateOrganizationScreen() {
     if (!result.canceled && result.assets[0]?.uri) {
       setLogoUri(result.assets[0].uri);
     }
+  };
+
+  const getDocumentMeta = (fileName: string) => {
+    const safeName = (fileName || 'document').toLowerCase();
+    const isPdf = safeName.endsWith('.pdf');
+    const contentType = isPdf ? 'application/pdf' : 'image/jpeg';
+    const ext = isPdf ? 'pdf' : 'jpg';
+    return { contentType, ext };
   };
 
   const handlePickDocument = async () => {
@@ -141,10 +161,11 @@ export default function CreateOrganizationScreen() {
       const documentUrls: string[] = [];
       for (let i = 0; i < documentUris.length; i++) {
         const doc = documentUris[i];
+        const meta = getDocumentMeta(doc.name);
         const url = await uploadFile(
           doc.uri,
-          `organizations/documents/${user.uid}_${Date.now()}_${i}.pdf`,
-          'application/pdf'
+          `organizations/documents/${user.uid}_${Date.now()}_${i}.${meta.ext}`,
+          meta.contentType
         );
         documentUrls.push(url);
       }
@@ -186,7 +207,12 @@ export default function CreateOrganizationScreen() {
       );
     } catch (error) {
       console.error('Error creating organization request:', error);
-      Alert.alert('Erreur', 'Une erreur est survenue lors de la soumission de votre demande. Veuillez réessayer.');
+      const anyErr: any = error;
+      Alert.alert(
+        'Erreur',
+        anyErr?.message ||
+          'Une erreur est survenue lors de la soumission de votre demande. Vérifiez votre connexion et réessayez.'
+      );
     } finally {
       setLoading(false);
     }
@@ -205,253 +231,404 @@ export default function CreateOrganizationScreen() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={insets.top + 60}
       >
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-          <ThemedText style={styles.section}>Informations de base</ThemedText>
-
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>
-              Nom de l'organisation <ThemedText style={styles.required}>*</ThemedText>
-            </ThemedText>
-            <TextInput
-              style={styles.input}
-              placeholder="Ex: Gare Routière de Lomé"
-              value={name}
-              onChangeText={setName}
-              editable={!loading}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>
-              Raison sociale complète <ThemedText style={styles.required}>*</ThemedText>
-            </ThemedText>
-            <TextInput
-              style={styles.input}
-              placeholder="Ex: SARL Gare Routière Lomé"
-              value={legalName}
-              onChangeText={setLegalName}
-              editable={!loading}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>Type d'organisation</ThemedText>
-            <TouchableOpacity
-              style={styles.picker}
-              onPress={() => setShowTypePicker(!showTypePicker)}
-              disabled={loading}
-            >
-              <ThemedText>{ORGANIZATION_TYPE_LABELS[type]}</ThemedText>
-              <Ionicons name="chevron-down" size={20} color="#64748b" />
-            </TouchableOpacity>
-            {showTypePicker && (
-              <View style={styles.pickerDropdown}>
-                {(Object.keys(ORGANIZATION_TYPE_LABELS) as OrganizationType[]).map((t) => (
-                  <TouchableOpacity
-                    key={t}
-                    style={styles.pickerItem}
-                    onPress={() => {
-                      setType(t);
-                      setShowTypePicker(false);
-                    }}
-                  >
-                    <ThemedText style={t === type ? styles.pickerItemActive : undefined}>
-                      {ORGANIZATION_TYPE_LABELS[t]}
-                    </ThemedText>
-                  </TouchableOpacity>
-                ))}
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryItem}>
+                <Ionicons name="business-outline" size={14} color="#64748b" />
+                <ThemedText style={styles.summaryText}>{ORGANIZATION_TYPE_LABELS[type]}</ThemedText>
               </View>
-            )}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>Catégorie</ThemedText>
-            <TouchableOpacity
-              style={styles.picker}
-              onPress={() => setShowCategoryPicker(!showCategoryPicker)}
-              disabled={loading}
-            >
-              <ThemedText>{ORGANIZATION_CATEGORY_LABELS[category]}</ThemedText>
-              <Ionicons name="chevron-down" size={20} color="#64748b" />
-            </TouchableOpacity>
-            {showCategoryPicker && (
-              <View style={styles.pickerDropdown}>
-                {(Object.keys(ORGANIZATION_CATEGORY_LABELS) as OrganizationCategory[]).map((c) => (
-                  <TouchableOpacity
-                    key={c}
-                    style={styles.pickerItem}
-                    onPress={() => {
-                      setCategory(c);
-                      setShowCategoryPicker(false);
-                    }}
-                  >
-                    <ThemedText style={c === category ? styles.pickerItemActive : undefined}>
-                      {ORGANIZATION_CATEGORY_LABELS[c]}
-                    </ThemedText>
-                  </TouchableOpacity>
-                ))}
+              <View style={styles.summaryDivider} />
+              <View style={styles.summaryItem}>
+                <Ionicons name="documents-outline" size={14} color="#64748b" />
+                <ThemedText style={styles.summaryText}>{documentUris.length} doc</ThemedText>
               </View>
-            )}
+              <View style={styles.summaryDivider} />
+              <View style={styles.summaryItem}>
+                <Ionicons name="shield-checkmark-outline" size={14} color="#64748b" />
+                <ThemedText style={styles.summaryText}>Vérification</ThemedText>
+              </View>
+            </View>
           </View>
 
-          <ThemedText style={styles.section}>Contact</ThemedText>
-
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>
-              Email officiel <ThemedText style={styles.required}>*</ThemedText>
-            </ThemedText>
-            <TextInput
-              style={styles.input}
-              placeholder="contact@organisation.tg"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              editable={!loading}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>
-              Téléphone <ThemedText style={styles.required}>*</ThemedText>
-            </ThemedText>
-            <TextInput
-              style={styles.input}
-              placeholder="+228 XX XX XX XX"
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-              editable={!loading}
-            />
-          </View>
-
-          <ThemedText style={styles.section}>Adresse</ThemedText>
-
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>
-              Rue <ThemedText style={styles.required}>*</ThemedText>
-            </ThemedText>
-            <TextInput
-              style={styles.input}
-              placeholder="Ex: Avenue de la Libération"
-              value={street}
-              onChangeText={setStreet}
-              editable={!loading}
-            />
-          </View>
-
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <ThemedText style={styles.label}>
-                Ville <ThemedText style={styles.required}>*</ThemedText>
-              </ThemedText>
-              <TextInput style={styles.input} placeholder="Lomé" value={city} onChangeText={setCity} editable={!loading} />
+          <View style={styles.cardSection}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={[styles.sectionIconCircle, { backgroundColor: 'rgba(59,130,246,0.12)' }]}>
+                <Ionicons name="information-circle-outline" size={18} color="#2563eb" />
+              </View>
+              <View style={styles.sectionHeaderTextWrap}>
+                <ThemedText style={styles.sectionHeaderTitle}>Informations de base</ThemedText>
+                <ThemedText style={styles.sectionHeaderSubtitle}>Présente clairement ton organisation</ThemedText>
+              </View>
             </View>
 
-            <View style={[styles.inputGroup, { flex: 1 }]}>
+            <View style={styles.inputGroup}>
               <ThemedText style={styles.label}>
-                Région <ThemedText style={styles.required}>*</ThemedText>
+                Nom affiché <ThemedText style={styles.required}>*</ThemedText>
               </ThemedText>
               <TextInput
                 style={styles.input}
-                placeholder="Maritime"
-                value={region}
-                onChangeText={setRegion}
+                placeholder="Ex: Gare Routière de Lomé"
+                placeholderTextColor="#94a3b8"
+                value={name}
+                onChangeText={setName}
+                editable={!loading}
+              />
+              <ThemedText style={styles.helperText}>C'est ce que les utilisateurs verront dans l'application.</ThemedText>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.label}>
+                Raison sociale (officiel) <ThemedText style={styles.required}>*</ThemedText>
+              </ThemedText>
+              <TextInput
+                style={styles.input}
+                placeholder="Ex: SARL Gare Routière Lomé"
+                placeholderTextColor="#94a3b8"
+                value={legalName}
+                onChangeText={setLegalName}
+                editable={!loading}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.label}>Type d'organisation</ThemedText>
+              <TouchableOpacity
+                style={styles.picker}
+                onPress={() => setShowTypePicker(!showTypePicker)}
+                disabled={loading}
+                activeOpacity={0.85}
+              >
+                <View style={styles.pickerLeft}>
+                  <Ionicons name="briefcase-outline" size={18} color="#64748b" />
+                  <ThemedText style={styles.pickerText}>{ORGANIZATION_TYPE_LABELS[type]}</ThemedText>
+                </View>
+                <Ionicons name="chevron-down" size={20} color="#64748b" />
+              </TouchableOpacity>
+              {showTypePicker && (
+                <View style={styles.pickerDropdown}>
+                  {(Object.keys(ORGANIZATION_TYPE_LABELS) as OrganizationType[]).map((t) => (
+                    <TouchableOpacity
+                      key={t}
+                      style={styles.pickerItem}
+                      onPress={() => {
+                        setType(t);
+                        setShowTypePicker(false);
+                      }}
+                    >
+                      <ThemedText style={t === type ? styles.pickerItemActive : undefined}>
+                        {ORGANIZATION_TYPE_LABELS[t]}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.label}>Catégorie</ThemedText>
+              <TouchableOpacity
+                style={styles.picker}
+                onPress={() => setShowCategoryPicker(!showCategoryPicker)}
+                disabled={loading}
+                activeOpacity={0.85}
+              >
+                <View style={styles.pickerLeft}>
+                  <Ionicons name="grid-outline" size={18} color="#64748b" />
+                  <ThemedText style={styles.pickerText}>{ORGANIZATION_CATEGORY_LABELS[category]}</ThemedText>
+                </View>
+                <Ionicons name="chevron-down" size={20} color="#64748b" />
+              </TouchableOpacity>
+              {showCategoryPicker && (
+                <View style={styles.pickerDropdown}>
+                  {(Object.keys(ORGANIZATION_CATEGORY_LABELS) as OrganizationCategory[]).map((c) => (
+                    <TouchableOpacity
+                      key={c}
+                      style={styles.pickerItem}
+                      onPress={() => {
+                        setCategory(c);
+                        setShowCategoryPicker(false);
+                      }}
+                    >
+                      <ThemedText style={c === category ? styles.pickerItemActive : undefined}>
+                        {ORGANIZATION_CATEGORY_LABELS[c]}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.cardSection}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={[styles.sectionIconCircle, { backgroundColor: 'rgba(236,72,153,0.12)' }]}>
+                <Ionicons name="call-outline" size={18} color="#db2777" />
+              </View>
+              <View style={styles.sectionHeaderTextWrap}>
+                <ThemedText style={styles.sectionHeaderTitle}>Contact</ThemedText>
+                <ThemedText style={styles.sectionHeaderSubtitle}>Pour que les utilisateurs puissent vous joindre</ThemedText>
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.label}>
+                Email officiel <ThemedText style={styles.required}>*</ThemedText>
+              </ThemedText>
+              <TextInput
+                style={styles.input}
+                placeholder="contact@organisation.tg"
+                placeholderTextColor="#94a3b8"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                editable={!loading}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.label}>
+                Téléphone <ThemedText style={styles.required}>*</ThemedText>
+              </ThemedText>
+              <TextInput
+                style={styles.input}
+                placeholder="+228 XX XX XX XX"
+                placeholderTextColor="#94a3b8"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
                 editable={!loading}
               />
             </View>
           </View>
 
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>Pays</ThemedText>
-            <TextInput style={styles.input} value={country} onChangeText={setCountry} editable={!loading} />
+          <View style={styles.cardSection}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={[styles.sectionIconCircle, { backgroundColor: 'rgba(16,185,129,0.12)' }]}>
+                <Ionicons name="location-outline" size={18} color="#059669" />
+              </View>
+              <View style={styles.sectionHeaderTextWrap}>
+                <ThemedText style={styles.sectionHeaderTitle}>Adresse</ThemedText>
+                <ThemedText style={styles.sectionHeaderSubtitle}>Adresse officielle de l'organisation</ThemedText>
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.label}>
+                Rue <ThemedText style={styles.required}>*</ThemedText>
+              </ThemedText>
+              <TextInput
+                style={styles.input}
+                placeholder="Ex: Avenue de la Libération"
+                placeholderTextColor="#94a3b8"
+                value={street}
+                onChangeText={setStreet}
+                editable={!loading}
+              />
+            </View>
+
+            <View style={styles.row}>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <ThemedText style={styles.label}>
+                  Ville <ThemedText style={styles.required}>*</ThemedText>
+                </ThemedText>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Lomé"
+                  placeholderTextColor="#94a3b8"
+                  value={city}
+                  onChangeText={setCity}
+                  editable={!loading}
+                />
+              </View>
+
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <ThemedText style={styles.label}>
+                  Région <ThemedText style={styles.required}>*</ThemedText>
+                </ThemedText>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Maritime"
+                  placeholderTextColor="#94a3b8"
+                  value={region}
+                  onChangeText={setRegion}
+                  editable={!loading}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.label}>Pays</ThemedText>
+              <TextInput style={styles.input} value={country} onChangeText={setCountry} editable={!loading} />
+            </View>
           </View>
 
-          <ThemedText style={styles.section}>Logo (optionnel)</ThemedText>
-
-          <TouchableOpacity style={styles.uploadButton} onPress={handlePickLogo} disabled={loading}>
-            {logoUri ? (
-              <ExpoImage source={{ uri: logoUri }} style={styles.logoPreview} contentFit="cover" />
-            ) : (
-              <>
-                <Ionicons name="image-outline" size={32} color="#64748b" />
-                <ThemedText style={styles.uploadText}>Ajouter un logo</ThemedText>
-              </>
-            )}
-          </TouchableOpacity>
-
-          <ThemedText style={styles.section}>
-            Documents de vérification <ThemedText style={styles.required}>*</ThemedText>
-          </ThemedText>
-
-          <ThemedText style={styles.helper}>
-            Registre de commerce, licence d'exploitation, carte d'identité du représentant légal, etc.
-          </ThemedText>
-
-          <TouchableOpacity style={styles.uploadButton} onPress={handlePickDocument} disabled={loading}>
-            <Ionicons name="document-outline" size={32} color="#64748b" />
-            <ThemedText style={styles.uploadText}>Ajouter un document</ThemedText>
-          </TouchableOpacity>
-
-          {documentUris.map((doc, index) => (
-            <View key={index} style={styles.documentItem}>
-              <Ionicons name="document-text" size={20} color={Colors.light.togoGreen} />
-              <ThemedText style={styles.documentName} numberOfLines={1}>
-                {doc.name}
-              </ThemedText>
-              <TouchableOpacity
-                onPress={() => setDocumentUris(documentUris.filter((_, i) => i !== index))}
-                disabled={loading}
-              >
-                <Ionicons name="close-circle" size={20} color="#ef4444" />
-              </TouchableOpacity>
+          <View style={styles.cardSection}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={[styles.sectionIconCircle, { backgroundColor: 'rgba(148,163,184,0.18)' }]}>
+                <Ionicons name="image-outline" size={18} color="#475569" />
+              </View>
+              <View style={styles.sectionHeaderTextWrap}>
+                <ThemedText style={styles.sectionHeaderTitle}>Logo</ThemedText>
+                <ThemedText style={styles.sectionHeaderSubtitle}>Optionnel, améliore la crédibilité</ThemedText>
+              </View>
             </View>
-          ))}
 
-          <ThemedText style={styles.section}>Votre rôle</ThemedText>
+            <TouchableOpacity style={styles.uploadButton} onPress={handlePickLogo} disabled={loading} activeOpacity={0.85}>
+              {logoUri ? (
+                <View style={styles.logoWrap}>
+                  <ExpoImage source={{ uri: logoUri }} style={styles.logoPreview} contentFit="cover" />
+                  <View style={styles.logoMeta}>
+                    <ThemedText style={styles.uploadTextStrong}>Logo sélectionné</ThemedText>
+                    <ThemedText style={styles.uploadHint}>Appuie pour changer</ThemedText>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+                </View>
+              ) : (
+                <View style={styles.uploadRow}>
+                  <View style={styles.uploadIconCircle}>
+                    <Ionicons name="camera-outline" size={22} color={Colors.light.togoGreen} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={styles.uploadTextStrong}>Ajouter un logo</ThemedText>
+                    <ThemedText style={styles.uploadHint}>PNG/JPG, carré de préférence</ThemedText>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
 
-          <TouchableOpacity
-            style={styles.picker}
-            onPress={() => setShowRolePicker(!showRolePicker)}
-            disabled={loading}
-          >
-            <ThemedText>{MEMBER_ROLE_LABELS[requestedRole]}</ThemedText>
-            <Ionicons name="chevron-down" size={20} color="#64748b" />
-          </TouchableOpacity>
-          {showRolePicker && (
-            <View style={styles.pickerDropdown}>
-              {(['owner', 'admin'] as MemberRole[]).map((r) => (
+          <View style={styles.cardSection}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={[styles.sectionIconCircle, { backgroundColor: 'rgba(245,158,11,0.14)' }]}>
+                <Ionicons name="document-text-outline" size={18} color="#b45309" />
+              </View>
+              <View style={styles.sectionHeaderTextWrap}>
+                <ThemedText style={styles.sectionHeaderTitle}>
+                  Documents de vérification <ThemedText style={styles.required}>*</ThemedText>
+                </ThemedText>
+                <ThemedText style={styles.sectionHeaderSubtitle}>Au moins 1 document requis</ThemedText>
+              </View>
+              <View style={{ flex: 1 }} />
+              <View style={styles.counterPill}>
+                <ThemedText style={styles.counterPillText}>{documentUris.length}</ThemedText>
+              </View>
+            </View>
+
+            <ThemedText style={styles.helperText}>
+              Registre de commerce, licence d'exploitation, carte d'identité du représentant légal, etc.
+            </ThemedText>
+
+            <TouchableOpacity style={styles.uploadButton} onPress={handlePickDocument} disabled={loading} activeOpacity={0.85}>
+              <View style={styles.uploadRow}>
+                <View style={styles.uploadIconCircleAlt}>
+                  <Ionicons name="add" size={22} color="#b45309" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <ThemedText style={styles.uploadTextStrong}>Ajouter un document</ThemedText>
+                  <ThemedText style={styles.uploadHint}>PDF ou image</ThemedText>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+              </View>
+            </TouchableOpacity>
+
+            {documentUris.map((doc, index) => (
+              <View key={index} style={styles.documentItem}>
+                <Ionicons name="document-text" size={18} color={Colors.light.togoGreen} />
+                <ThemedText style={styles.documentName} numberOfLines={1}>
+                  {doc.name}
+                </ThemedText>
                 <TouchableOpacity
-                  key={r}
-                  style={styles.pickerItem}
-                  onPress={() => {
-                    setRequestedRole(r);
-                    setShowRolePicker(false);
-                  }}
+                  onPress={() => setDocumentUris(documentUris.filter((_, i) => i !== index))}
+                  disabled={loading}
+                  style={styles.documentRemove}
+                  activeOpacity={0.9}
                 >
-                  <ThemedText style={r === requestedRole ? styles.pickerItemActive : undefined}>
-                    {MEMBER_ROLE_LABELS[r]}
-                  </ThemedText>
+                  <Ionicons name="close" size={16} color="#0f172a" />
                 </TouchableOpacity>
-              ))}
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.cardSection}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={[styles.sectionIconCircle, { backgroundColor: 'rgba(99,102,241,0.12)' }]}>
+                <Ionicons name="person-circle-outline" size={18} color="#4f46e5" />
+              </View>
+              <View style={styles.sectionHeaderTextWrap}>
+                <ThemedText style={styles.sectionHeaderTitle}>Votre rôle</ThemedText>
+                <ThemedText style={styles.sectionHeaderSubtitle}>Choisis ton niveau d'accès</ThemedText>
+              </View>
             </View>
-          )}
+
+            <TouchableOpacity
+              style={styles.picker}
+              onPress={() => setShowRolePicker(!showRolePicker)}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              <View style={styles.pickerLeft}>
+                <Ionicons name="key-outline" size={18} color="#64748b" />
+                <ThemedText style={styles.pickerText}>{MEMBER_ROLE_LABELS[requestedRole]}</ThemedText>
+              </View>
+              <Ionicons name="chevron-down" size={20} color="#64748b" />
+            </TouchableOpacity>
+            {showRolePicker && (
+              <View style={styles.pickerDropdown}>
+                {(['owner', 'admin'] as MemberRole[]).map((r) => (
+                  <TouchableOpacity
+                    key={r}
+                    style={styles.pickerItem}
+                    onPress={() => {
+                      setRequestedRole(r);
+                      setShowRolePicker(false);
+                    }}
+                  >
+                    <ThemedText style={r === requestedRole ? styles.pickerItemActive : undefined}>
+                      {MEMBER_ROLE_LABELS[r]}
+                    </ThemedText>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
 
           <TouchableOpacity
-            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+            style={[styles.submitButton, (!canSubmit || loading) && styles.submitButtonDisabled]}
             onPress={handleSubmit}
-            disabled={loading}
-            activeOpacity={0.8}
+            disabled={!canSubmit}
+            activeOpacity={0.85}
           >
             {loading ? (
               <ActivityIndicator color="#ffffff" />
             ) : (
-              <ThemedText style={styles.submitText}>Soumettre la demande</ThemedText>
+              <>
+                <Ionicons name="paper-plane" size={18} color="#ffffff" />
+                <ThemedText style={styles.submitText}>Soumettre la demande</ThemedText>
+              </>
             )}
           </TouchableOpacity>
+
+          {!user ? (
+            <ThemedText style={styles.bottomHint}>Connexion requise pour créer une organisation.</ThemedText>
+          ) : !name.trim() || !legalName.trim() || !email.trim() || !phone.trim() ? (
+            <ThemedText style={styles.bottomHint}>Remplis les informations de base et le contact.</ThemedText>
+          ) : !street.trim() || !city.trim() || !region.trim() ? (
+            <ThemedText style={styles.bottomHint}>Renseigne une adresse complète.</ThemedText>
+          ) : documentUris.length === 0 ? (
+            <ThemedText style={styles.bottomHint}>Ajoute au moins un document de vérification.</ThemedText>
+          ) : null}
 
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -463,50 +640,124 @@ export default function CreateOrganizationScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 12,
+    padding: 16,
+    backgroundColor: '#f8fafc',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 16,
+    marginBottom: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
   },
   title: {
     flex: 1,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0f172a',
+    letterSpacing: 0.2,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 20,
+    paddingBottom: 32,
   },
-  section: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0f172a',
-    marginTop: 20,
+  cardSection: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
+    marginBottom: 14,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     marginBottom: 12,
   },
+  sectionIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionHeaderTextWrap: {
+    flex: 1,
+  },
+  sectionHeaderTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  sectionHeaderSubtitle: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  summaryCard: {
+    backgroundColor: '#f1f5f9',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 14,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  summaryItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  summaryDivider: {
+    width: 1,
+    height: 18,
+    backgroundColor: '#e2e8f0',
+  },
+  summaryText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155',
+  },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: 14,
   },
   label: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#64748b',
-    marginBottom: 6,
+    color: '#475569',
+    marginBottom: 8,
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginTop: 8,
   },
   required: {
     color: '#ef4444',
   },
   input: {
     backgroundColor: '#ffffff',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
     color: '#0f172a',
   },
   row: {
@@ -518,11 +769,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#ffffff',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 10,
+  },
+  pickerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  pickerText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#0f172a',
   },
   pickerDropdown: {
     marginTop: 8,
@@ -540,59 +803,125 @@ const styles = StyleSheet.create({
     color: Colors.light.togoGreen,
   },
   uploadButton: {
-    backgroundColor: '#f8fafc',
-    borderWidth: 2,
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
-    borderStyle: 'dashed',
-    borderRadius: 12,
-    padding: 24,
+    borderRadius: 16,
+    padding: 14,
+  },
+  uploadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  uploadIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,106,78,0.10)',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
   },
-  uploadText: {
+  uploadIconCircleAlt: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(245,158,11,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadTextStrong: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#64748b',
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  uploadHint: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginTop: 4,
+  },
+  logoWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  logoMeta: {
+    flex: 1,
   },
   logoPreview: {
-    width: 120,
-    height: 120,
-    borderRadius: 8,
-  },
-  helper: {
-    fontSize: 12,
-    color: '#64748b',
-    marginBottom: 12,
-    lineHeight: 18,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: '#e2e8f0',
   },
   documentItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#f1f5f9',
-    borderRadius: 8,
-    padding: 10,
-    marginTop: 8,
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   documentName: {
     flex: 1,
     fontSize: 13,
     color: '#0f172a',
   },
+  documentRemove: {
+    width: 28,
+    height: 28,
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  counterPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  counterPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155',
+  },
   submitButton: {
     backgroundColor: Colors.light.togoGreen,
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderRadius: 16,
+    paddingVertical: 18,
     alignItems: 'center',
     marginTop: 24,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    shadowColor: Colors.light.togoGreen,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
   },
   submitButtonDisabled: {
     opacity: 0.6,
+    shadowOpacity: 0,
   },
   submitText: {
     fontSize: 16,
     fontWeight: '700',
     color: '#ffffff',
+    letterSpacing: 0.3,
+  },
+  bottomHint: {
+    marginTop: 10,
+    fontSize: 12,
+    color: '#64748b',
+    textAlign: 'center',
   },
 });

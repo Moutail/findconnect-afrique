@@ -1,6 +1,7 @@
 {
   "projects": {
-    "default": "agoo-alert"
+    "default": "agoo-alert",
+    "dev": "agoo-alert"
   },
   "targets": {},
   "etags": {}

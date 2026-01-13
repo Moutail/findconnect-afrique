@@ -40,7 +40,6 @@ service cloud.firestore {
 
       allow create: if isSignedIn() && (
         (request.resource.data.publishedBy == 'user'
-          && isVerified()
           && request.resource.data.createdBy == request.auth.uid
           && request.resource.data.moderationStatus == 'pending'
           && request.resource.data.moderatedAt == null
@@ -100,7 +99,6 @@ service cloud.firestore {
 
         allow create: if isRequester()
           && request.resource.data.requesterId == request.auth.uid
-          && request.resource.data.ownerId == reportOwnerId()
           && request.resource.data.reportId == reportId
           && request.resource.data.status == 'pending';
 
@@ -108,6 +106,10 @@ service cloud.firestore {
           isReportOwner()
           && resource.data.status == 'pending'
           && (request.resource.data.status == 'accepted' || request.resource.data.status == 'rejected')
+        ) || (
+          isRequester()
+          && request.resource.data.requesterId == request.auth.uid
+          && request.resource.data.status == 'pending'
         );
 
         allow delete: if isModerator() || isReportOwner() || isRequester();

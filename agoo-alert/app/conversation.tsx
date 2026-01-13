@@ -183,6 +183,8 @@ export default function ConversationScreen() {
           padding: 14,
           paddingBottom: Math.max(120, insets.bottom + 120)
         }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         renderItem={({ item }) => {
           const isMe = item.senderId === auth.currentUser?.uid;
           return (
