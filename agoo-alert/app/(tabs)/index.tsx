@@ -1,8 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
   FlatList,
+  Modal,
+  Platform,
   RefreshControl,
+  StatusBar,
   StyleSheet,
   TouchableOpacity,
   Pressable,
@@ -23,6 +27,7 @@ import { db } from '@/config/firebaseConfig';
 import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import * as Location from 'expo-location';
 import { Coordinates, calculateDistance } from '@/types/location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Report = {
   id: string;
@@ -53,6 +58,35 @@ export default function HomeScreen() {
   const [distanceFilterEnabled, setDistanceFilterEnabled] = useState(false);
   const [maxDistance, setMaxDistance] = useState<number | null>(null);
   const [showDistanceFilter, setShowDistanceFilter] = useState(false);
+
+  const [tourVisible, setTourVisible] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+  const [tourTargets, setTourTargets] = useState<Record<string, { x: number; y: number; width: number; height: number }>>(
+    {}
+  );
+
+  const searchRef = useRef<View>(null);
+  const filtersRef = useRef<ScrollView>(null);
+  const listRef = useRef<View>(null);
+
+  const TOUR_KEY = 'onboarding_tour_home_v1';
+  const tourSteps: Array<{ id: 'search' | 'filters' | 'list'; title: string; body: string }> = [
+    {
+      id: 'search',
+      title: 'Rechercher',
+      body: "Tape ici pour retrouver rapidement une alerte par titre ou par ville.",
+    },
+    {
+      id: 'filters',
+      title: 'Filtrer',
+      body: "Utilise ces filtres pour voir seulement les personnes, objets perdus/trouvés, ou activer le filtre de distance.",
+    },
+    {
+      id: 'list',
+      title: 'Ouvrir une alerte',
+      body: "Appuie sur une carte pour voir le détail, les photos et demander un chat.",
+    },
+  ];
 
   // Filtrer les résultats
   const filteredReports = useMemo(() => {
@@ -117,6 +151,60 @@ export default function HomeScreen() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const seen = await AsyncStorage.getItem(TOUR_KEY);
+        if (!seen) {
+          setTourStep(0);
+          setTourVisible(true);
+        }
+      } catch {
+        // no-op
+      }
+    })();
+  }, []);
+
+  const finishTour = async () => {
+    setTourVisible(false);
+    try {
+      await AsyncStorage.setItem(TOUR_KEY, '1');
+    } catch {
+      // no-op
+    }
+  };
+
+  const currentTour = tourSteps[tourStep];
+  const targetRect = currentTour ? tourTargets[currentTour.id] : undefined;
+  const modalOffsetY = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
+
+  const measureCurrentTarget = () => {
+    if (!currentTour) return;
+    const ref =
+      currentTour.id === 'search'
+        ? (searchRef as any)
+        : currentTour.id === 'filters'
+          ? (filtersRef as any)
+          : (listRef as any);
+
+    const node = ref?.current;
+    if (!node?.measureInWindow) return;
+
+    node.measureInWindow((x: number, y: number, width: number, height: number) => {
+      if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(width) || !Number.isFinite(height)) return;
+      setTourTargets((prev) => ({ ...prev, [currentTour.id]: { x, y, width, height } }));
+    });
+  };
+
+  useEffect(() => {
+    if (!tourVisible) return;
+    const t = setTimeout(() => {
+      measureCurrentTarget();
+    }, 60);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tourVisible, tourStep]);
 
   useEffect(() => {
     setLoading(true);
@@ -299,7 +387,13 @@ export default function HomeScreen() {
           </View>
 
           {/* Barre de recherche */}
-          <View style={styles.searchContainer}>
+          <View
+            style={styles.searchContainer}
+            ref={searchRef}
+            onLayout={() => {
+              if (tourVisible && currentTour?.id === 'search') measureCurrentTarget();
+            }}
+          >
             <View style={styles.searchInputWrapper}>
               <Ionicons name="search" size={18} color="#94a3b8" style={styles.searchIcon} />
               <TextInput
@@ -344,7 +438,15 @@ export default function HomeScreen() {
       {/* Liste */}
       <View style={styles.listContainer}>
         {/* Filtres par type */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filtersRow}
+          ref={filtersRef}
+          onLayout={() => {
+            if (tourVisible && currentTour?.id === 'filters') measureCurrentTarget();
+          }}
+        >
           <Pressable onPress={() => setFilterType('all')}>
             {({ pressed }) => (
               <View
@@ -466,7 +568,13 @@ export default function HomeScreen() {
         )}
 
         {/* Titre de section */}
-        <View style={styles.sectionHeader}>
+        <View
+          style={styles.sectionHeader}
+          ref={listRef}
+          onLayout={() => {
+            if (tourVisible && currentTour?.id === 'list') measureCurrentTarget();
+          }}
+        >
           <ThemedText style={styles.sectionTitle}>
             {searchQuery ? 'Résultats' : 'Alertes récentes'}
           </ThemedText>
@@ -521,6 +629,80 @@ export default function HomeScreen() {
           />
         )}
       </View>
+
+      <Modal transparent visible={tourVisible} animationType="fade" statusBarTranslucent>
+        <View style={styles.tourOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setTourVisible(false)} />
+
+          {targetRect ? (
+            <View
+              pointerEvents="none"
+              style={[
+                styles.tourHighlight,
+                {
+                  left: targetRect.x - 6,
+                  top: targetRect.y + modalOffsetY - 6,
+                  width: targetRect.width + 12,
+                  height: targetRect.height + 12,
+                },
+              ]}
+            />
+          ) : null}
+
+          <View
+            style={[
+              styles.tourCard,
+              targetRect
+                ? {
+                    top: (() => {
+                      const windowH = Dimensions.get('window').height;
+                      const y = targetRect.y + modalOffsetY;
+                      const preferBelow = y + targetRect.height + 220 < windowH - 20;
+                      const belowTop = y + targetRect.height + 18;
+                      const aboveTop = Math.max((insets.top || 0) + 16, y - 220);
+                      return preferBelow ? belowTop : aboveTop;
+                    })(),
+                  }
+                : { top: (insets.top || 0) + 120 },
+            ]}
+          >
+            <View style={styles.tourCardHeader}>
+              <ThemedText style={styles.tourTitle}>{currentTour?.title ?? 'Guide'}</ThemedText>
+              <TouchableOpacity onPress={finishTour} activeOpacity={0.85} style={styles.tourCloseBtn}>
+                <Ionicons name="close" size={18} color="#0f172a" />
+              </TouchableOpacity>
+            </View>
+            <ThemedText style={styles.tourBody}>{currentTour?.body ?? ''}</ThemedText>
+
+            <View style={styles.tourActions}>
+              <TouchableOpacity onPress={finishTour} style={styles.tourSkipBtn} activeOpacity={0.9}>
+                <ThemedText style={styles.tourSkipText}>Passer</ThemedText>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={async () => {
+                  if (tourStep >= tourSteps.length - 1) {
+                    await finishTour();
+                  } else {
+                    setTourStep((s) => s + 1);
+                  }
+                }}
+                style={styles.tourNextBtn}
+                activeOpacity={0.9}
+              >
+                <ThemedText style={styles.tourNextText}>
+                  {tourStep >= tourSteps.length - 1 ? 'Terminer' : 'Suivant'}
+                </ThemedText>
+                <Ionicons
+                  name={tourStep >= tourSteps.length - 1 ? 'checkmark' : 'arrow-forward'}
+                  size={18}
+                  color="#ffffff"
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -528,7 +710,84 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  tourOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(2,6,23,0.62)',
+  },
+  tourHighlight: {
+    position: 'absolute',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  tourCard: {
+    position: 'absolute',
+    left: 14,
+    right: 14,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 14,
+  },
+  tourCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  tourCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tourTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  tourBody: {
+    fontSize: 13,
+    color: '#334155',
+    lineHeight: 19,
+    marginBottom: 12,
+  },
+  tourActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  tourSkipBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#f1f5f9',
+  },
+  tourSkipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  tourNextBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: Colors.light.togoGreen,
+    flex: 1,
+  },
+  tourNextText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
   },
   headerGradient: {
     paddingTop: 36,

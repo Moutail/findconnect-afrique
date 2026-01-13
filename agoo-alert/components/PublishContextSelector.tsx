@@ -52,10 +52,12 @@ export function PublishContextSelector({ selectedContext, onContextChange }: Pub
 
       const orgsPromises = orgIds.map(async (orgId) => {
         const orgSnap = await getDocs(query(collection(db, 'organizations'), where('__name__', '==', orgId)));
-        return orgSnap.docs[0]?.data() as Organization;
+        const doc0 = orgSnap.docs[0];
+        if (!doc0) return null;
+        return { id: doc0.id, ...(doc0.data() as Omit<Organization, 'id'>) } as Organization;
       });
 
-      const orgs = (await Promise.all(orgsPromises)).filter(Boolean);
+      const orgs = (await Promise.all(orgsPromises)).filter((org): org is Organization => !!org);
       setOrganizations(orgs.filter((org) => org.verificationStatus === 'approved' && org.canPost));
     } catch (error) {
       console.error('Error loading organizations:', error);

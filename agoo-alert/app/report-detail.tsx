@@ -12,6 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image as ExpoImage } from 'expo-image';
+import ImageViewing from 'react-native-image-viewing';
 
 import { ThemedText } from '@/components/themed-text';
 import { auth, db } from '@/config/firebaseConfig';
@@ -33,6 +34,7 @@ type ReportDetail = {
   pickupInstructions?: string;
   status?: string;
   imageUrl?: string;
+  imageUrls?: string[];
   createdBy?: string;
 };
 
@@ -43,6 +45,8 @@ export default function ReportDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requestingChat, setRequestingChat] = useState(false);
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
 
   useEffect(() => {
     const load = async () => {
@@ -74,6 +78,7 @@ export default function ReportDetailScreen() {
             pickupInstructions: d.pickupInstructions,
             status: d.status || 'open',
             imageUrl: d.imageUrl,
+            imageUrls: Array.isArray(d.imageUrls) ? d.imageUrls : d.imageUrl ? [d.imageUrl] : [],
             createdBy: d.createdBy,
           });
         }
@@ -148,6 +153,13 @@ export default function ReportDetailScreen() {
     }
   };
 
+  const images = (report?.imageUrls ?? []).filter((u): u is string => typeof u === 'string' && !!u);
+  const viewerImages = images.map((uri) => ({ uri }));
+  const openViewer = (index: number) => {
+    setViewerIndex(index);
+    setViewerVisible(true);
+  };
+
   return (
     <View style={styles.screen}>
       {/* Header avec dégradé */}
@@ -220,14 +232,35 @@ export default function ReportDetailScreen() {
             {/* Titre */}
             <ThemedText style={styles.mainTitle}>{report.title}</ThemedText>
 
-            {report.imageUrl ? (
+            {images.length > 0 ? (
               <View style={styles.imageCard}>
-                <ExpoImage
-                  source={{ uri: report.imageUrl }}
-                  style={styles.coverImage}
-                  contentFit="contain"
-                  transition={150}
-                />
+                <TouchableOpacity activeOpacity={0.9} onPress={() => openViewer(0)}>
+                  <ExpoImage
+                    source={{ uri: images[0] }}
+                    style={styles.coverImage}
+                    contentFit="contain"
+                    transition={150}
+                  />
+                </TouchableOpacity>
+
+                {images.length > 1 ? (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.thumbsRow}
+                  >
+                    {images.map((uri, index) => (
+                      <TouchableOpacity
+                        key={`${uri}_${index}`}
+                        activeOpacity={0.9}
+                        onPress={() => openViewer(index)}
+                        style={styles.thumbWrap}
+                      >
+                        <ExpoImage source={{ uri }} style={styles.thumbImage} contentFit="cover" />
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                ) : null}
               </View>
             ) : null}
 
@@ -404,6 +437,13 @@ export default function ReportDetailScreen() {
           <View style={styles.bottomSpacer} />
         </ScrollView>
       ) : null}
+
+      <ImageViewing
+        images={viewerImages}
+        imageIndex={viewerIndex}
+        visible={viewerVisible}
+        onRequestClose={() => setViewerVisible(false)}
+      />
     </View>
   );
 }
@@ -431,7 +471,27 @@ const styles = StyleSheet.create({
   },
   coverImage: {
     width: '100%',
-    height: 260,
+    height: 280,
+    borderRadius: 16,
+  },
+  thumbsRow: {
+    paddingTop: 10,
+    paddingBottom: 12,
+    paddingHorizontal: 12,
+    gap: 10,
+  },
+  thumbWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
+  },
+  thumbImage: {
+    width: '100%',
+    height: '100%',
   },
   headerGradient: {
     paddingTop: 50,
