@@ -1,0 +1,51 @@
+﻿{
+  "id": "831351dc-d0b6-452e-a007-2959dc389f6b",
+  "status": "ERRORED",
+  "platform": "ANDROID",
+  "error": {
+    "errorCode": "EAS_BUILD_UNKNOWN_GRADLE_ERROR",
+    "message": "Gradle build failed with unknown error. See logs for the \"Run gradlew\" phase for more information."
+  },
+  "artifacts": {},
+  "fingerprint": {
+    "id": "019bb557-212d-78ae-8849-520f10b59921",
+    "hash": "753827c70b1621eda7ad2c6833c9cefaac046528"
+  },
+  "initiatingActor": {
+    "id": "8ffc0da4-e5d5-484e-8f5a-3e4cdb3e273d",
+    "displayName": "bigboros"
+  },
+  "logFiles": [
+    "https://job-logs.eascdn.net/production/831351dc-d0b6-452e-a007-2959dc389f6b/1768273945048-03dbffdf-d28d-4415-9449-c17eedac7738.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260113%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260113T032224Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=052f7b84187f6efc215dc85b7ac9cc2311aff9ee7c21fe94cb9f675eb8458b42b40652283797ac8fcf12aab2c813383f678e2dc159162669c046f3a76a48ab0a45540185b2d23dd4f03b1240e89fa255f9fc280a5932942b832f0182289a551a58dfc2e7f50dc22d641901a29b72a8d06a1125bab70a80e7632f6b1afd7dc91edf383885b648c61b05093ffbf9e24226e7583c65530a67fa5493810a308831f09b61bf7fcb52d791f75cae50a705a0f9726a49a68137865b36adf4d8f0eec01577b962d06f5a9d628cb48634845df542a8a334602a57ca620993d93284a769d87cf629a744f8801dc889acc8e15b6bd8b7ea80611c8d198339b8879229524946",
+    "https://job-logs.eascdn.net/production/831351dc-d0b6-452e-a007-2959dc389f6b/1768273951781-490e7826-16f7-46c5-82e6-f1de22565d44.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260113%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260113T032224Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=ab167c4aa15cdebc1069de9639c182c2421f4d0c47d4b5db10afb64e67535d76b2b16473112d2d792471042d22aedb0aa8babfd612542c2ced46c4e9b12c009631ab1785581b0f3da4b0465b4c4a097b6f9f720a8cd3c77c6af07e28feb51d56aee72a84dd936f4de841d0c11f4cf9bec01194bdf911f183286c2446f25ae8692e336ae3af76a9fbd820011c9c2e3790287ed976946aa998fea0162b4fb4b23290d19019715f479916810ef9c86e952f599b3591d60ca970cef7a08516884a30968b6ed71adfb60b471320f779a17546a7ef8e52ef5e4999ff0402dcbc07799d2fc5dfbf652cb124e72a53c7a9254816560be3cfffc8915b9d2d6b62063219e1",
+    "https://job-logs.eascdn.net/production/831351dc-d0b6-452e-a007-2959dc389f6b/1768273952047-b5bdb85d-2e1a-4608-adbe-0d20ea64a031.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260113%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260113T032224Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=84d077bd30ef720a4168944e8bc4857716d3c933ea9347a5fd939b5188e036d8530fd4a48100ea40d0703e05d4220b07e9d71285a8f5fb2090a01a26d081d97d362e1d2323e9aa8f37f3db748912f99fa4568f3cfbf2c471f9c85de52e853cdfb1e402d08484b00bc306cbf9529d5c485cfc4ed4c35ae96da5c86bf3c4533a6687299c94f70df061885a9c6965cf55902e005277bb46bc1c41b57e77b92b6145455c374cdffbc57e587bc9c6a67c0f5901b1888852de34b193f518f20edb92b4045e9f880dbb90b4e93cb461106987f7579a3e1d014f2b35ff87607a293ce30551987d6ff5fdc6ee06687ea84d1cd49a50c90c1e364f7fe58b19e9abcdcb30b7",
+    "https://job-logs.eascdn.net/production/831351dc-d0b6-452e-a007-2959dc389f6b/1768273952220-1ebd30fd-6f79-452e-b55a-35865dd67827.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260113%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260113T032224Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=1af521a486e65eedb929aed4a52212ca751933a62c6aba292d885a45f61728eec5cb3856b2896ceceac55922f444d59330c30d867a5ed1f81e1c5d1a1126d37ead9c04d5e8cc46691424ddae39ca279771dad5581b9b07ab02be0776acaeb6912c3fd979e848d702cf73bda9636900e1adb0a4fcf49fe7b07a7295eb584d80d4cddd9f3ddb238b94d9f057d0b8619565c2b16950d75f088373905b60e46f13a1252c995476a292569aa07aa3e2ae8a051461fd050d2adf5e98a4c90d6feadfe2dea46561c94c8bdd3a412d4ca7b80c618971efa86fc2dddeac4c99552e795d822fe91626c11e59867996d6e012c8628ff99b01279a0cd57bb9e7e73b635b529d"
+  ],
+  "project": {
+    "id": "f82e3e2a-87ed-4b88-a325-642826003c01",
+    "name": "agoo-alert",
+    "slug": "agoo-alert",
+    "ownerAccount": {
+      "id": "f37c661b-af31-4696-b596-6ab8fcbaa351",
+      "name": "bigboros"
+    }
+  },
+  "distribution": "INTERNAL",
+  "buildProfile": "preview",
+  "sdkVersion": "54.0.0",
+  "appVersion": "1.0.1",
+  "appBuildVersion": "1",
+  "gitCommitHash": "62297f5a1dfeb8e7c049885883b92d825b4b0f2a",
+  "gitCommitMessage": "commit",
+  "priority": "NORMAL",
+  "createdAt": "2026-01-13T03:12:24.715Z",
+  "updatedAt": "2026-01-13T03:15:50.128Z",
+  "completedAt": "2026-01-13T03:15:46.832Z",
+  "expirationDate": "2026-01-27T03:12:24.850Z",
+  "isForIosSimulator": false,
+  "metrics": {
+    "buildWaitTime": 251,
+    "buildQueueTime": 43377,
+    "buildDuration": 157523
+  }
+}
