@@ -18,7 +18,7 @@ export function SelfieCamera({ onCapture, onCancel }: SelfieCameraProps) {
     if (permission === null) {
       requestPermission();
     }
-  }, [permission]);
+  }, [permission, requestPermission]);
 
   if (!permission) {
     return <View style={styles.container}><Text>Chargement...</Text></View>;

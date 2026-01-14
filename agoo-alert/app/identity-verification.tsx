@@ -6,7 +6,6 @@ import {
   Image,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -23,9 +22,26 @@ import { SelfieCamera } from '@/components/selfie-camera';
 import { auth, db, storage, functions } from '@/config/firebaseConfig';
 import { Colors } from '@/constants/theme';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 type Step = 1 | 2 | 3 | 4;
+
+interface FaceDetectionResult {
+  isValid: boolean;
+  confidence?: number;
+  message?: string;
+}
+
+interface OCRResult {
+  success: boolean;
+  data?: {
+    name?: string;
+    idNumber?: string;
+    dateOfBirth?: string;
+    [key: string]: any;
+  };
+  message?: string;
+}
 
 export default function IdentityVerificationScreen() {
   const router = useRouter();
@@ -34,8 +50,8 @@ export default function IdentityVerificationScreen() {
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
   const [idCardUri, setIdCardUri] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [faceDetectionResult, setFaceDetectionResult] = useState<any>(null);
-  const [ocrResult, setOcrResult] = useState<any>(null);
+  const [faceDetectionResult, setFaceDetectionResult] = useState<FaceDetectionResult | null>(null);
+  const [ocrResult, setOcrResult] = useState<OCRResult | null>(null);
 
   const uploadImageToStorage = async (uri: string, type: 'selfie' | 'idcard'): Promise<string> => {
     const user = auth.currentUser;
@@ -78,9 +94,9 @@ export default function IdentityVerificationScreen() {
     }
   };
 
-  const processSelfieFaceDetection = async (imageUrl: string) => {
+  const processSelfieFaceDetection = async (imageUrl: string): Promise<FaceDetectionResult | null> => {
     try {
-      const detectFace = httpsCallable(functions, 'detectFaceInSelfie');
+      const detectFace = httpsCallable<{ imageUrl: string; userId?: string }, FaceDetectionResult>(functions, 'detectFaceInSelfie');
       const result = await detectFace({
         imageUrl,
         userId: auth.currentUser?.uid,
@@ -95,9 +111,9 @@ export default function IdentityVerificationScreen() {
     }
   };
 
-  const processIdCardOCR = async (imageUrl: string) => {
+  const processIdCardOCR = async (imageUrl: string): Promise<OCRResult | null> => {
     try {
-      const processOCR = httpsCallable(functions, 'processIdCardOCR');
+      const processOCR = httpsCallable<{ imageUrl: string; userId?: string }, OCRResult>(functions, 'processIdCardOCR');
       const result = await processOCR({
         imageUrl,
         userId: auth.currentUser?.uid,
