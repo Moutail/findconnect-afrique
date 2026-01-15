@@ -67,7 +67,7 @@ export function ReportsMapView({ reports, userLocation, onReportPress, loading =
         longitudeDelta: 0.05,
       });
     }
-  }, [reportsWithLocation.length, userLocation]);
+  }, [reportsWithLocation, userLocation]);
 
   const handleMarkerPress = (reportId: string) => {
     if (onReportPress) {
