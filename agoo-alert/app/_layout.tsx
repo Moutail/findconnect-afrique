@@ -17,13 +17,18 @@ export default function RootLayout() {
     return onAuthStateChanged(auth, async (u) => {
       if (!u) return;
       try {
+        const payload: any = {
+          uid: u.uid,
+          updatedAt: serverTimestamp(),
+        };
+
+        // Ne pas écraser les champs existants avec null
+        if (u.displayName) payload.displayName = u.displayName;
+        if (u.email) payload.email = u.email;
+
         await setDoc(
           doc(db, 'users', u.uid),
-          {
-            uid: u.uid,
-            displayName: u.displayName ?? null,
-            updatedAt: serverTimestamp(),
-          },
+          payload,
           { merge: true }
         );
       } catch (e) {

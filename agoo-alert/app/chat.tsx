@@ -327,7 +327,19 @@ export default function ChatScreen() {
       setPendingAudioUri(null);
       setPendingAudioDurationMs(undefined);
     } catch (e) {
-      console.error('Send audio error', e);
+      const err: any = e;
+      console.error('Send audio error', err);
+      try {
+        console.error('Send audio error details', {
+          code: err?.code,
+          message: err?.message,
+          name: err?.name,
+          serverResponse: err?.serverResponse ?? err?.customData?.serverResponse,
+          customData: err?.customData,
+        });
+      } catch {
+        // ignore
+      }
     } finally {
       setSending(false);
     }

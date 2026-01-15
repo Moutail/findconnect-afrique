@@ -6,13 +6,16 @@ import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { auth, db } from '@/config/firebaseConfig';
-import { collectionGroup, doc, getDoc, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
+import { collection, doc, getDoc, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 import { Colors } from '@/constants/theme';
 
 type RequestRow = {
   id: string;
   reportId: string;
   requesterId: string;
+  requesterDisplayName?: string | null;
+  requesterEmail?: string | null;
+  requesterPhone?: string | null;
   status: 'pending' | 'accepted' | 'rejected';
   createdAt?: { seconds: number; nanoseconds: number } | null;
 };
@@ -23,6 +26,40 @@ export default function ChatRequestsScreen() {
   const [rows, setRows] = useState<RequestRow[]>([]);
   const [acting, setActing] = useState<string | null>(null);
   const [mode, setMode] = useState<'pending' | 'all'>('pending');
+  const [profilesByUid, setProfilesByUid] = useState<Record<string, { displayName?: string | null; pseudonym?: string | null; phone?: string | null; email?: string | null }>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const missing = Array.from(
+      new Set(
+        rows
+          .filter((r) => !r.requesterDisplayName && !r.requesterEmail && !r.requesterPhone)
+          .map((r) => r.requesterId)
+          .filter(Boolean)
+      )
+    ).filter((uid) => !profilesByUid[uid]);
+
+    if (missing.length === 0) return;
+
+    (async () => {
+      const updates: Record<string, any> = {};
+      for (const uid of missing) {
+        try {
+          const snap = await getDoc(doc(db, 'users', uid));
+          updates[uid] = snap.exists() ? (snap.data() as any) : null;
+        } catch {
+          updates[uid] = null;
+        }
+      }
+      if (cancelled) return;
+      setProfilesByUid((prev) => ({ ...prev, ...updates }));
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [rows, profilesByUid]);
 
   useEffect(() => {
     const user = auth.currentUser;
@@ -34,25 +71,52 @@ export default function ChatRequestsScreen() {
 
     setLoading(true);
 
-    // On lit via collectionGroup: reports/*/chatRequests where ownerId == uid
-    const q = query(collectionGroup(db, 'chatRequests'), where('ownerId', '==', user.uid));
+    // Variante sans collectionGroup (plus fiable côté règles):
+    // 1) charger les reports de l'utilisateur
+    // 2) écouter reports/{reportId}/chatRequests pour chaque report
+    const unsubRequestsByReport = new Map<string, () => void>();
 
-    return onSnapshot(
-      q,
-      (snap) => {
-        console.log('CHAT-REQUESTS SNAP COUNT =', snap.size);
-        setRows(
-          snap.docs.map((d) => {
-            const data = d.data() as any;
-            return {
-              id: d.id,
-              reportId: data.reportId || '',
-              requesterId: data.requesterId || '',
-              status: data.status === 'accepted' || data.status === 'rejected' ? data.status : 'pending',
-              createdAt: data.createdAt ?? null,
-            } as RequestRow;
-          })
-        );
+    const reportsQuery = query(collection(db, 'reports'), where('createdBy', '==', user.uid));
+
+    const unsubReports = onSnapshot(
+      reportsQuery,
+      (reportsSnap) => {
+        const reportIds = reportsSnap.docs.map((d) => d.id);
+
+        // cleanup listeners for removed reports
+        for (const [rid, unsub] of unsubRequestsByReport.entries()) {
+          if (!reportIds.includes(rid)) {
+            unsub();
+            unsubRequestsByReport.delete(rid);
+          }
+        }
+
+        // (re)subscribe to each report chatRequests
+        for (const rid of reportIds) {
+          if (unsubRequestsByReport.has(rid)) continue;
+
+          const rq = query(collection(db, 'reports', rid, 'chatRequests'));
+          const unsubReq = onSnapshot(
+            rq,
+            () => {
+              const allRows: RequestRow[] = [];
+
+              // rebuild from all active report listeners
+              for (const activeRid of reportIds) {
+                // no-op: we'll fill rows in per-listener below
+              }
+
+              // Since we can't read other listeners' snapshots here, we keep per-report cache
+            },
+            (error) => {
+              console.error('CHAT-REQUESTS SNAP ERROR =', error);
+              setLoading(false);
+            }
+          );
+
+          unsubRequestsByReport.set(rid, unsubReq);
+        }
+
         setLoading(false);
       },
       (error) => {
@@ -60,6 +124,84 @@ export default function ChatRequestsScreen() {
         setLoading(false);
       }
     );
+
+    // Cache: reportId -> rows
+    const cache = new Map<string, RequestRow[]>();
+
+    // Patch listeners to fill cache and compute rows
+    const resubscribeAll = (reportIds: string[]) => {
+      for (const rid of reportIds) {
+        const existing = unsubRequestsByReport.get(rid);
+        if (existing) continue;
+
+        const rq = query(collection(db, 'reports', rid, 'chatRequests'));
+        const unsubReq = onSnapshot(
+          rq,
+          (reqSnap) => {
+            cache.set(
+              rid,
+              reqSnap.docs.map((d) => {
+                const data = d.data() as any;
+                return {
+                  id: d.id,
+                  reportId: rid,
+                  requesterId: data.requesterId || d.id,
+                  requesterDisplayName: data.requesterDisplayName ?? null,
+                  requesterEmail: data.requesterEmail ?? null,
+                  requesterPhone: data.requesterPhone ?? null,
+                  status: data.status === 'accepted' || data.status === 'rejected' ? data.status : 'pending',
+                  createdAt: data.createdAt ?? null,
+                } as RequestRow;
+              })
+            );
+
+            const merged = Array.from(cache.values()).flat();
+            console.log('CHAT-REQUESTS SNAP COUNT =', merged.length);
+            setRows(merged);
+            setLoading(false);
+          },
+          (error) => {
+            console.error('CHAT-REQUESTS SNAP ERROR =', error);
+            setLoading(false);
+          }
+        );
+
+        unsubRequestsByReport.set(rid, unsubReq);
+      }
+    };
+
+    // Replace reports listener with one that resubscribes using cache
+    unsubReports();
+    const unsubReports2 = onSnapshot(
+      reportsQuery,
+      (reportsSnap) => {
+        const reportIds = reportsSnap.docs.map((d) => d.id);
+
+        for (const [rid, unsub] of unsubRequestsByReport.entries()) {
+          if (!reportIds.includes(rid)) {
+            unsub();
+            unsubRequestsByReport.delete(rid);
+            cache.delete(rid);
+          }
+        }
+
+        resubscribeAll(reportIds);
+        const merged = Array.from(cache.values()).flat();
+        setRows(merged);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('CHAT-REQUESTS SNAP ERROR =', error);
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      unsubReports2();
+      for (const unsub of unsubRequestsByReport.values()) unsub();
+      unsubRequestsByReport.clear();
+      cache.clear();
+    };
   }, []);
 
   const pending = useMemo(() => rows.filter((r) => r.status === 'pending'), [rows]);
@@ -210,7 +352,17 @@ export default function ChatRequestsScreen() {
                     {item.status === 'pending' ? 'Demande' : item.status === 'accepted' ? 'Acceptée' : 'Refusée'}
                   </ThemedText>
                   <ThemedText style={styles.meta}>Report: {item.reportId}</ThemedText>
-                  <ThemedText style={styles.meta}>Demandeur: {item.requesterId}</ThemedText>
+                  <ThemedText style={styles.meta}>
+                    Demandeur:{' '}
+                    {item.requesterDisplayName ||
+                      item.requesterEmail ||
+                      item.requesterPhone ||
+                      profilesByUid[item.requesterId]?.displayName ||
+                      profilesByUid[item.requesterId]?.pseudonym ||
+                      profilesByUid[item.requesterId]?.phone ||
+                      profilesByUid[item.requesterId]?.email ||
+                      item.requesterId}
+                  </ThemedText>
                 </View>
                 <Ionicons name="chatbubbles" size={20} color={Colors.light.togoGreen} />
               </View>

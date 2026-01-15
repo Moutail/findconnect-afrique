@@ -119,12 +119,23 @@ export default function ReportDetailScreen() {
     setRequestingChat(true);
 
     try {
+      const profileSnap = await getDoc(doc(db, 'users', user.uid));
+      const profile = (profileSnap.exists() ? (profileSnap.data() as any) : null) as any;
+
+      const requesterDisplayName =
+        profile?.displayName || profile?.pseudonym || user.displayName || null;
+      const requesterEmail = profile?.email || user.email || null;
+      const requesterPhone = profile?.phone || user.phoneNumber || null;
+
       await setDoc(
         doc(db, 'reports', report.id, 'chatRequests', user.uid),
         {
           reportId: report.id,
           ownerId: report.createdBy,
           requesterId: user.uid,
+          requesterDisplayName,
+          requesterEmail,
+          requesterPhone,
           status: 'pending',
           createdAt: serverTimestamp(),
         },
@@ -154,11 +165,13 @@ export default function ReportDetailScreen() {
       }
 
       const data = reqSnap.data() as any;
+      if (data.status === 'rejected') {
+        Alert.alert('Demande refusée', "Le déclarant a refusé ta demande de chat.");
+        return;
+      }
+
       if (data.status !== 'accepted') {
-        Alert.alert(
-          'Demande en attente',
-          "Le déclarant doit d'abord accepter ta demande de chat avant de discuter."
-        );
+        Alert.alert('Demande en attente', "Le déclarant doit d'abord accepter ta demande de chat avant de discuter.");
         return;
       }
 
