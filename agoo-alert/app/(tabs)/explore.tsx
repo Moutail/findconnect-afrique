@@ -80,9 +80,23 @@ export default function DeclareScreen() {
     setImageUris(imageUris.filter((_, i) => i !== index));
   };
 
+  const uriToBlobAsync = (uri: string) => {
+    return new Promise<Blob>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.onload = () => {
+        resolve(xhr.response as Blob);
+      };
+      xhr.onerror = () => {
+        reject(new Error('Failed to read file as blob'));
+      };
+      xhr.responseType = 'blob';
+      xhr.open('GET', uri, true);
+      xhr.send(null);
+    });
+  };
+
   const uploadImageAsync = async (uri: string, reportId: string, index: number) => {
-    const response = await fetch(uri);
-    const blob = await response.blob();
+    const blob = await uriToBlobAsync(uri);
     const objectRef = ref(storage, `reports/${reportId}/image_${index}_${Date.now()}.jpg`);
     await uploadBytes(objectRef, blob, { contentType: 'image/jpeg' });
     return await getDownloadURL(objectRef);

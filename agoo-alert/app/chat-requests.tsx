@@ -26,6 +26,7 @@ export default function ChatRequestsScreen() {
 
   useEffect(() => {
     const user = auth.currentUser;
+    console.log('CHAT-REQUESTS CURRENT UID =', user?.uid);
     if (!user) {
       setLoading(false);
       return;
@@ -39,6 +40,7 @@ export default function ChatRequestsScreen() {
     return onSnapshot(
       q,
       (snap) => {
+        console.log('CHAT-REQUESTS SNAP COUNT =', snap.size);
         setRows(
           snap.docs.map((d) => {
             const data = d.data() as any;
@@ -53,7 +55,10 @@ export default function ChatRequestsScreen() {
         );
         setLoading(false);
       },
-      () => setLoading(false)
+      (error) => {
+        console.error('CHAT-REQUESTS SNAP ERROR =', error);
+        setLoading(false);
+      }
     );
   }, []);
 

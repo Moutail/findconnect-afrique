@@ -7,7 +7,7 @@
     "icon": "./assets/images/logo.png",
     "scheme": "agooalert",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "bundleIdentifier": "com.bigboros.agooalert",
       "supportsTablet": true
@@ -22,6 +22,10 @@
       "softwareKeyboardLayoutMode": "resize",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
       "package": "com.bigboros.agooalert"
     },
     "web": {

@@ -114,9 +114,23 @@ export default function CreateOrganizationScreen() {
     }
   };
 
+  const uriToBlobAsync = (uri: string) => {
+    return new Promise<Blob>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.onload = () => {
+        resolve(xhr.response as Blob);
+      };
+      xhr.onerror = () => {
+        reject(new Error('Failed to read file as blob'));
+      };
+      xhr.responseType = 'blob';
+      xhr.open('GET', uri, true);
+      xhr.send(null);
+    });
+  };
+
   const uploadFile = async (uri: string, path: string, contentType: string): Promise<string> => {
-    const response = await fetch(uri);
-    const blob = await response.blob();
+    const blob = await uriToBlobAsync(uri);
     const storageRef = ref(storage, path);
     await uploadBytes(storageRef, blob, { contentType });
     return await getDownloadURL(storageRef);
