@@ -139,12 +139,35 @@ export default function ReportDetailScreen() {
     }
   };
 
-  const openConversation = () => {
+  const openConversation = async () => {
     if (!report?.id) return;
     const user = auth.currentUser;
     if (!user) return;
-    const conversationId = `${report.id}_${user.uid}`;
-    router.push({ pathname: '/conversation' as any, params: { id: conversationId } });
+
+    try {
+      const reqRef = doc(db, 'reports', report.id, 'chatRequests', user.uid);
+      const reqSnap = await getDoc(reqRef);
+
+      if (!reqSnap.exists()) {
+        Alert.alert('Demande requise', 'Tu dois d\'abord envoyer une demande de chat.');
+        return;
+      }
+
+      const data = reqSnap.data() as any;
+      if (data.status !== 'accepted') {
+        Alert.alert(
+          'Demande en attente',
+          "Le déclarant doit d'abord accepter ta demande de chat avant de discuter."
+        );
+        return;
+      }
+
+      const conversationId: string = data.conversationId || `${report.id}_${user.uid}`;
+      router.push({ pathname: '/conversation' as any, params: { id: conversationId } });
+    } catch (e) {
+      console.error('Failed to open conversation', e);
+      Alert.alert('Erreur', "Impossible d'ouvrir la conversation pour le moment.");
+    }
   };
 
   const handleCall = () => {
