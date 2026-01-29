@@ -2,40 +2,35 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { Colors } from '@/constants/theme';
-import { auth, db } from '@/config/firebaseConfig';
+import { authAPI } from '@/config/apiConfig';
 
 export default function TabLayout() {
   const router = useRouter();
   const [unreadCount, setUnreadCount] = useState<number>(0);
 
   useEffect(() => {
-    let unsubUser: null | (() => void) = null;
-    const unsubAuth = onAuthStateChanged(auth, (u) => {
-      if (unsubUser) {
-        unsubUser();
-        unsubUser = null;
-      }
-      if (!u) {
-        setUnreadCount(0);
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const ok = await authAPI.isAuthenticated();
+        if (!ok) {
+          if (!cancelled) setUnreadCount(0);
+          router.replace('/welcome' as any);
+          return;
+        }
+        if (!cancelled) setUnreadCount(0);
+      } catch {
+        if (!cancelled) setUnreadCount(0);
         router.replace('/welcome' as any);
-        return;
       }
+    };
 
-      unsubUser = onSnapshot(doc(db, 'users', u.uid), (snap) => {
-        const data = snap.data() as any;
-        const n = Number(data?.unreadMessagesCount ?? 0);
-        setUnreadCount(Number.isFinite(n) && n > 0 ? n : 0);
-      });
-    });
-
+    check();
     return () => {
-      unsubAuth();
-      if (unsubUser) unsubUser();
+      cancelled = true;
     };
   }, [router]);
 

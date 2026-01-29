@@ -14,7 +14,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/themed-text';
-import { auth } from '@/config/firebaseConfig';
+import { authAPI } from '@/config/apiConfig';
 import { Colors } from '@/constants/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
@@ -64,8 +64,8 @@ export default function StartupScreen() {
         }
 
         try {
-          const user = auth.currentUser;
-          if (user) {
+          const isLoggedIn = await authAPI.isAuthenticated();
+          if (isLoggedIn) {
             router.replace('/(tabs)');
             return;
           }

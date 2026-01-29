@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,15 +15,13 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Image as ExpoImage } from 'expo-image';
-import { addDoc, collection, serverTimestamp, updateDoc, doc } from 'firebase/firestore';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { CategorySelector } from '@/components/CategorySelector';
 import { LocationPicker } from '@/components/LocationPicker';
 import { PublishContextSelector, PublishContext } from '@/components/PublishContextSelector';
-import { auth, db, storage } from '@/config/firebaseConfig';
+import { authAPI, reportsAPI, uploadAPI } from '@/config/apiConfig';
 import { CategoryMetadata, validateCategoryMetadata } from '@/types/categories';
 import { LocationData } from '@/types/location';
 import { Colors } from '@/constants/theme';
@@ -31,7 +29,8 @@ import { Colors } from '@/constants/theme';
 export default function DeclareScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const user = auth.currentUser;
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [storedUser, setStoredUser] = useState<any | null>(null);
 
   const [loading, setLoading] = useState(false);
 
@@ -54,7 +53,35 @@ export default function DeclareScreen() {
   // Images
   const [imageUris, setImageUris] = useState<string[]>([]);
 
-  const canSubmit = !!user && !!title.trim() && !!description.trim() && validateCategoryMetadata(categoryMetadata) && !loading;
+  useEffect(() => {
+    let cancelled = false;
+    const bootstrap = async () => {
+      try {
+        const ok = await authAPI.isAuthenticated();
+        const u = await authAPI.getStoredUser();
+        if (!cancelled) {
+          setIsAuthenticated(ok);
+          setStoredUser(u);
+        }
+      } catch {
+        if (!cancelled) {
+          setIsAuthenticated(false);
+          setStoredUser(null);
+        }
+      }
+    };
+    bootstrap();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const canSubmit =
+    isAuthenticated &&
+    !!title.trim() &&
+    !!description.trim() &&
+    validateCategoryMetadata(categoryMetadata) &&
+    !loading;
 
   const handlePickImages = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -80,30 +107,8 @@ export default function DeclareScreen() {
     setImageUris(imageUris.filter((_, i) => i !== index));
   };
 
-  const uriToBlobAsync = (uri: string) => {
-    return new Promise<Blob>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.onload = () => {
-        resolve(xhr.response as Blob);
-      };
-      xhr.onerror = () => {
-        reject(new Error('Failed to read file as blob'));
-      };
-      xhr.responseType = 'blob';
-      xhr.open('GET', uri, true);
-      xhr.send(null);
-    });
-  };
-
-  const uploadImageAsync = async (uri: string, reportId: string, index: number) => {
-    const blob = await uriToBlobAsync(uri);
-    const objectRef = ref(storage, `reports/${reportId}/image_${index}_${Date.now()}.jpg`);
-    await uploadBytes(objectRef, blob, { contentType: 'image/jpeg' });
-    return await getDownloadURL(objectRef);
-  };
-
   const handleSubmit = async () => {
-    if (!user) {
+    if (!isAuthenticated) {
       Alert.alert('Connexion requise', 'Veuillez vous connecter pour créer une publication.');
       return;
     }
@@ -124,7 +129,6 @@ export default function DeclareScreen() {
     setLoading(true);
 
     try {
-      // Créer la publication d'abord pour obtenir l'ID
       // Nettoyer categoryMetadata pour éviter les undefined (récursif)
       const cleanObject = (obj: any): any => {
         if (obj === null || obj === undefined) return null;
@@ -148,66 +152,21 @@ export default function DeclareScreen() {
 
       const cleanedCategoryMetadata = cleanObject(categoryMetadata);
 
-      const reportData: any = {
+      const effectiveContactPhone = contactPhone.trim() || storedUser?.phone || '';
+
+      const uploaded = imageUris.length > 0 ? await uploadAPI.uploadImages(imageUris) : { images: [] };
+      const images = Array.isArray((uploaded as any)?.images) ? (uploaded as any).images : [];
+
+      await reportsAPI.createReport({
         title: title.trim(),
         description: description.trim(),
-        contactPhone: contactPhone.trim() || user.phoneNumber || '',
-
-        // Catégorie avancée
         mainCategory: categoryMetadata.mainCategory,
         categoryMetadata: cleanedCategoryMetadata,
-
-        // Localisation
-        location: location || null,
-
-        // Contexte de publication
-        publishedBy: publishContext.type,
-        createdBy: user.uid,
-
-        // Métadonnées
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        moderationStatus: 'pending',
-        moderatedAt: null,
-        moderatedBy: null,
-        status: 'open',
-
-        // Images (initialisées pour schéma stable)
-        imageUrls: [],
-        imageUrl: '',
-      };
-
-      // Ajouter subCategory seulement si définie
-      if (categoryMetadata.subCategory) {
-        reportData.subCategory = categoryMetadata.subCategory;
-      }
-
-      // Ajouter données organisation si applicable
-      if (publishContext.type === 'organization') {
-        reportData.organizationId = publishContext.organizationId;
-        reportData.organizationName = publishContext.organizationName;
-        reportData.organizationLogo = publishContext.organizationLogo;
-        reportData.isOfficialPost = true;
-      } else {
-        reportData.isOfficialPost = false;
-      }
-
-      const docRef = await addDoc(collection(db, 'reports'), reportData);
-
-      // Upload images si présentes
-      if (imageUris.length > 0) {
-        const uploadedUrls: string[] = [];
-        for (let i = 0; i < imageUris.length; i++) {
-          const url = await uploadImageAsync(imageUris[i], docRef.id, i);
-          uploadedUrls.push(url);
-        }
-
-        // Mettre à jour le document avec les URLs des images
-        await updateDoc(doc(db, 'reports', docRef.id), {
-          imageUrls: uploadedUrls,
-          imageUrl: uploadedUrls[0], // Image principale
-        });
-      }
+        location: location || undefined,
+        images,
+        contactPhone: effectiveContactPhone || undefined,
+        contactPreference: 'chat',
+      });
 
       Alert.alert(
         'Publication créée!',
@@ -220,7 +179,7 @@ export default function DeclareScreen() {
       Alert.alert(
         'Erreur',
         anyErr?.message ||
-          "Une erreur est survenue lors de la création de votre publication. Vérifiez votre connexion et les règles Firestore/Storage."
+          "Une erreur est survenue lors de la création de votre publication. Vérifiez votre connexion et le serveur."
       );
     } finally {
       setLoading(false);
@@ -458,7 +417,7 @@ export default function DeclareScreen() {
             )}
           </TouchableOpacity>
 
-          {!user ? (
+          {!isAuthenticated ? (
             <ThemedText style={styles.bottomHint}>Connexion requise pour publier.</ThemedText>
           ) : !title.trim() || !description.trim() ? (
             <ThemedText style={styles.bottomHint}>Renseigne au moins le titre et la description.</ThemedText>

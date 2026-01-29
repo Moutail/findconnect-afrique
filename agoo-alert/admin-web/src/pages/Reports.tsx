@@ -1,19 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
-} from 'firebase/firestore';
 
-import { db } from '../firebase';
-import { useAdminAuth } from '../auth';
+import { reportsModerationAPI } from '../api';
 
 type ModerationStatus = 'pending' | 'approved' | 'rejected';
 
@@ -30,7 +18,6 @@ type ReportRow = {
 type Tab = 'pending' | 'approved';
 
 export default function ReportsPage() {
-  const { user } = useAdminAuth();
   const [tab, setTab] = useState<Tab>('pending');
   const [rows, setRows] = useState<ReportRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,63 +25,39 @@ export default function ReportsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setLoading(true);
-    setError(null);
-    setRows([]);
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await reportsModerationAPI.list({ status: tab, limit: 100 });
+        const backendReports = Array.isArray((res as any)?.reports) ? (res as any).reports : [];
+        const mapped: ReportRow[] = backendReports.map((r: any) => ({
+          id: String(r?._id || r?.id || ''),
+          title: r?.title || '',
+          type: r?.mainCategory === 'person' ? 'person' : 'object',
+          city: r?.location?.city,
+          moderationStatus: r?.moderationStatus,
+          createdAt: r?.createdAt ? { seconds: Math.floor(new Date(r.createdAt).getTime() / 1000), nanoseconds: 0 } : null,
+          createdBy: (r?.createdBy && (r.createdBy._id || r.createdBy.id)) ? String(r.createdBy._id || r.createdBy.id) : undefined,
+        }));
 
-    const mapSnap = (snap: any) => {
-      setRows(
-        snap.docs.map((d: any) => {
-          const data = d.data() as any;
-          return {
-            id: d.id,
-            title: data.title || '',
-            type: data.type === 'object' ? 'object' : 'person',
-            city: data.city,
-            moderationStatus: data.moderationStatus,
-            createdAt: data.createdAt ?? null,
-            createdBy: data.createdBy,
-          };
-        })
-      );
-      setLoading(false);
+        if (!cancelled) {
+          setRows(mapped);
+        }
+      } catch (e: any) {
+        if (!cancelled) {
+          setError(e?.message ?? 'Impossible de charger les publications.');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     };
 
-    const qWithOrder = query(
-      collection(db, 'reports'),
-      where('moderationStatus', '==', tab),
-      orderBy('createdAt', 'desc')
-    );
-
-    const qNoOrder = query(collection(db, 'reports'), where('moderationStatus', '==', tab));
-
-    const unsubPrimary = onSnapshot(
-      qWithOrder,
-      (snap) => {
-        setError(null);
-        mapSnap(snap);
-      },
-      (err) => {
-        const msg = (err as any)?.message ?? String(err);
-        setError(msg);
-        setLoading(true);
-
-        const unsubFallback = onSnapshot(
-          qNoOrder,
-          (snap) => {
-            mapSnap(snap);
-          },
-          (err2) => {
-            setError(((err2 as any)?.message ?? String(err2)) + '\n' + msg);
-            setLoading(false);
-          }
-        );
-
-        return () => unsubFallback();
-      }
-    );
-
-    return () => unsubPrimary();
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, [tab]);
 
   const sorted = useMemo(() => {
@@ -106,15 +69,22 @@ export default function ReportsPage() {
   }, [rows]);
 
   const approve = async (id: string) => {
-    if (!user) return;
     setActionLoadingId(id);
     try {
-      await updateDoc(doc(db, 'reports', id), {
-        moderationStatus: 'approved',
-        moderatedAt: serverTimestamp(),
-        moderatedBy: user.uid,
-        rejectionReason: null,
-      });
+      await reportsModerationAPI.setModeration(id, 'approved');
+      const res = await reportsModerationAPI.list({ status: tab, limit: 100 });
+      const backendReports = Array.isArray((res as any)?.reports) ? (res as any).reports : [];
+      setRows(
+        backendReports.map((r: any) => ({
+          id: String(r?._id || r?.id || ''),
+          title: r?.title || '',
+          type: r?.mainCategory === 'person' ? 'person' : 'object',
+          city: r?.location?.city,
+          moderationStatus: r?.moderationStatus,
+          createdAt: r?.createdAt ? { seconds: Math.floor(new Date(r.createdAt).getTime() / 1000), nanoseconds: 0 } : null,
+          createdBy: (r?.createdBy && (r.createdBy._id || r.createdBy.id)) ? String(r.createdBy._id || r.createdBy.id) : undefined,
+        }))
+      );
     } finally {
       setActionLoadingId(null);
     }
@@ -123,7 +93,20 @@ export default function ReportsPage() {
   const remove = async (id: string) => {
     setActionLoadingId(id);
     try {
-      await deleteDoc(doc(db, 'reports', id));
+      await reportsModerationAPI.remove(id);
+      const res = await reportsModerationAPI.list({ status: tab, limit: 100 });
+      const backendReports = Array.isArray((res as any)?.reports) ? (res as any).reports : [];
+      setRows(
+        backendReports.map((r: any) => ({
+          id: String(r?._id || r?.id || ''),
+          title: r?.title || '',
+          type: r?.mainCategory === 'person' ? 'person' : 'object',
+          city: r?.location?.city,
+          moderationStatus: r?.moderationStatus,
+          createdAt: r?.createdAt ? { seconds: Math.floor(new Date(r.createdAt).getTime() / 1000), nanoseconds: 0 } : null,
+          createdBy: (r?.createdBy && (r.createdBy._id || r.createdBy.id)) ? String(r.createdBy._id || r.createdBy.id) : undefined,
+        }))
+      );
     } finally {
       setActionLoadingId(null);
     }

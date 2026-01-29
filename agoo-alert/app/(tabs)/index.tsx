@@ -23,11 +23,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { DistanceFilter } from '@/components/DistanceFilter';
 import { Colors } from '@/constants/theme';
-import { db } from '@/config/firebaseConfig';
-import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import * as Location from 'expo-location';
 import { Coordinates, calculateDistance } from '@/types/location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { fetchReportsBackendFirst } from '@/utils/reportsSource';
 
 type Report = {
   id: string;
@@ -210,62 +209,28 @@ export default function HomeScreen() {
     setLoading(true);
     setError(null);
 
-    const mapSnap = (snapshot: any) => {
-      const data: Report[] = snapshot.docs.map((doc: any) => {
-        const d = doc.data() as any;
-        return {
-          id: doc.id,
-          type: d.type === 'object' ? 'object' : 'person',
-          kind: d.kind === 'found' ? 'found' : 'lost',
-          title: d.title || '',
-          city: d.city,
-          status: d.status || 'open',
-          imageUrl: d.imageUrl,
-          createdAt: d.createdAt ?? null,
-        };
-      });
-      setReports(data);
-      setLoading(false);
-      setRefreshing(false);
-    };
+    let cancelled = false;
 
-    const qWithOrder = query(
-      collection(db, 'reports'),
-      where('moderationStatus', '==', 'approved'),
-      orderBy('createdAt', 'desc')
-    );
-
-    const qNoOrder = query(collection(db, 'reports'), where('moderationStatus', '==', 'approved'));
-
-    const unsubPrimary = onSnapshot(
-      qWithOrder,
-      (snapshot) => {
-        setError(null);
-        mapSnap(snapshot);
-      },
-      (e) => {
+    (async () => {
+      try {
+        const { reports: list, source } = await fetchReportsBackendFirst({ limit: 50 });
+        if (cancelled) return;
+        setReports(list as any);
+        setError(source === 'firebase' ? 'Mode hors-ligne: données Firebase (lecture seule).' : null);
+      } catch (e: any) {
+        if (cancelled) return;
         console.error('Error loading reports', e);
-        setError((e as any)?.message ?? 'Impossible de charger les publications.');
-        setLoading(true);
-
-        const unsubFallback = onSnapshot(
-          qNoOrder,
-          (snapshot) => {
-            mapSnap(snapshot);
-          },
-          (e2) => {
-            console.error('Fallback error loading reports', e2);
-            setError(((e2 as any)?.message ?? 'Impossible de charger les publications.') + '\n' + ((e as any)?.message ?? ''));
-            setLoading(false);
-            setRefreshing(false);
-          }
-        );
-
-        return () => unsubFallback();
+        setError(e?.message ?? 'Impossible de charger les publications.');
+      } finally {
+        if (cancelled) return;
+        setLoading(false);
+        setRefreshing(false);
       }
-    );
+    })();
 
-    return () => unsubPrimary();
+    return () => {
+      cancelled = true;
+    };
   }, [reloadKey]);
 
   const onRefresh = () => {

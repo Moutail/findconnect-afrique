@@ -3,20 +3,20 @@ import { ActivityIndicator, StyleSheet, View, TouchableOpacity, Alert } from 're
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ReportsMapView } from '@/components/ReportsMapView';
 import { DistanceFilter } from '@/components/DistanceFilter';
-import { db } from '@/config/firebaseConfig';
 import { Coordinates } from '@/types/location';
 import { Colors } from '@/constants/theme';
+import { fetchReportsBackendFirst } from '@/utils/reportsSource';
 
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [source, setSource] = useState<'backend' | 'firebase'>('backend');
   const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
 
@@ -74,29 +74,25 @@ export default function MapScreen() {
   useEffect(() => {
     setLoading(true);
 
-    const q = query(
-      collection(db, 'reports'),
-      where('moderationStatus', '==', 'approved'),
-      orderBy('createdAt', 'desc')
-    );
+    let cancelled = false;
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const data = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setReports(data);
-        setLoading(false);
-      },
-      (error) => {
+    (async () => {
+      try {
+        const { reports: list, source: src } = await fetchReportsBackendFirst({ limit: 200 });
+        if (cancelled) return;
+        setReports(list as any);
+        setSource(src);
+      } catch (error) {
         console.error('Error loading reports:', error);
+      } finally {
+        if (cancelled) return;
         setLoading(false);
       }
-    );
+    })();
 
-    return () => unsubscribe();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Filtrer par distance si activé
@@ -189,6 +185,13 @@ export default function MapScreen() {
         </View>
       )}
 
+      {source === 'firebase' ? (
+        <View style={styles.offlineBanner}>
+          <Ionicons name="cloud-offline-outline" size={16} color="#0f172a" />
+          <ThemedText style={styles.offlineText}>Mode hors-ligne: données Firebase (lecture seule)</ThemedText>
+        </View>
+      ) : null}
+
       {/* Carte */}
       <View style={styles.mapContainer}>
         <ReportsMapView
@@ -272,6 +275,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
+  },
+  offlineBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#fff7ed',
+    borderBottomWidth: 1,
+    borderBottomColor: '#fed7aa',
+  },
+  offlineText: {
+    fontSize: 13,
+    color: '#0f172a',
+    fontWeight: '600',
   },
   mapContainer: {
     flex: 1,

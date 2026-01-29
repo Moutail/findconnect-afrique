@@ -20,9 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { auth, db } from '@/config/firebaseConfig';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { authAPI } from '@/config/apiConfig';
 import { Colors } from '@/constants/theme';
 
 const { width, height } = Dimensions.get('window');
@@ -109,58 +107,15 @@ export default function LoginScreen() {
       const emailFromPhone = phoneToEmail(phone.trim());
 
       if (isRegisterMode) {
-        await createUserWithEmailAndPassword(auth, emailFromPhone, password);
+        const displayName = `${firstName.trim()} ${lastName.trim()}`.trim();
+        await authAPI.register({
+          email: emailFromPhone,
+          password,
+          displayName,
+          phone: phone.trim(),
+        });
       } else {
-        await signInWithEmailAndPassword(auth, emailFromPhone, password);
-      }
-
-      const u = auth.currentUser;
-      if (u) {
-        const normalizedPhone = phone.trim();
-
-        if (isRegisterMode) {
-          // Mode inscription : créer avec tous les champs
-          const displayName = `${firstName.trim()} ${lastName.trim()}`.trim();
-          await setDoc(
-            doc(db, 'users', u.uid),
-            {
-              uid: u.uid,
-              phone: normalizedPhone,
-              displayName: displayName,
-              firstName: firstName.trim(),
-              lastName: lastName.trim(),
-              pseudonym: pseudonym.trim(),
-              verificationStatus: 'unverified',
-              verificationSubmittedAt: null,
-              verificationCompletedAt: null,
-              verificationCompletedBy: null,
-              selfieUrl: null,
-              idCardUrl: null,
-              ocrData: null,
-              faceDetection: null,
-              rejectionReason: null,
-              rejectionCount: 0,
-              canPost: false,
-              blockedAt: null,
-              blockedBy: null,
-              blockReason: null,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-            },
-            { merge: true }
-          );
-        } else {
-          // Mode connexion : mettre à jour seulement certains champs
-          await setDoc(
-            doc(db, 'users', u.uid),
-            {
-              uid: u.uid,
-              phone: normalizedPhone,
-              updatedAt: serverTimestamp(),
-            },
-            { merge: true }
-          );
-        }
+        await authAPI.login(emailFromPhone, password);
       }
       router.replace('/(tabs)');
     } catch (error: any) {

@@ -3,39 +3,10 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
-import { useEffect } from 'react';
-
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { auth, db } from '@/config/firebaseConfig';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-
-  useEffect(() => {
-    return onAuthStateChanged(auth, async (u) => {
-      if (!u) return;
-      try {
-        const payload: any = {
-          uid: u.uid,
-          updatedAt: serverTimestamp(),
-        };
-
-        // Ne pas écraser les champs existants avec null
-        if (u.displayName) payload.displayName = u.displayName;
-        if (u.email) payload.email = u.email;
-
-        await setDoc(
-          doc(db, 'users', u.uid),
-          payload,
-          { merge: true }
-        );
-      } catch (e) {
-        console.error('Failed to upsert user profile', e);
-      }
-    });
-  }, []);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
