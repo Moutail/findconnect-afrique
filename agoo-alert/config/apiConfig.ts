@@ -23,10 +23,22 @@ const USER_KEY = '@agoo_user';
 let authToken: string | null = null;
 let refreshToken: string | null = null;
 
+let lastAuthCheckAt = 0;
+let lastAuthCheckResult: boolean | null = null;
+
 export const getToken = async (): Promise<string | null> => {
   if (authToken) return authToken;
   authToken = await AsyncStorage.getItem(TOKEN_KEY);
+  if (!refreshToken) {
+    refreshToken = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+  }
   return authToken;
+};
+
+export const getRefreshToken = async (): Promise<string | null> => {
+  if (refreshToken) return refreshToken;
+  refreshToken = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+  return refreshToken;
 };
 
 export const setTokens = async (token: string, refresh: string): Promise<void> => {
@@ -51,6 +63,14 @@ interface RequestOptions {
   requireAuth?: boolean;
   timeoutMs?: number;
 }
+
+const AUTH_PUBLIC_ENDPOINTS = new Set([
+  '/auth/login',
+  '/auth/register',
+  '/auth/refresh',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+]);
 
 class ApiError extends Error {
   status: number;
@@ -101,7 +121,12 @@ const request = async <T = any>(
     
     if (!response.ok) {
       // Si token expiré, essayer de rafraîchir
-      if (response.status === 401 && refreshToken) {
+      if (
+        response.status === 401 &&
+        requireAuth &&
+        !AUTH_PUBLIC_ENDPOINTS.has(endpoint) &&
+        (await getRefreshToken())
+      ) {
         const refreshed = await refreshAuthToken();
         if (refreshed) {
           // Réessayer la requête
@@ -126,7 +151,7 @@ const request = async <T = any>(
 
 const refreshAuthToken = async (): Promise<boolean> => {
   try {
-    const refresh = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+    const refresh = await getRefreshToken();
     if (!refresh) return false;
     
     const response = await fetch(`${API_URL}/auth/refresh`, {
@@ -262,7 +287,23 @@ export const authAPI = {
   // Vérifier si l'utilisateur est connecté
   isAuthenticated: async (): Promise<boolean> => {
     const token = await getToken();
-    return !!token;
+    if (!token) return false;
+
+    const now = Date.now();
+    // Cache 20s pour éviter de spammer /auth/me et déclencher le rate limit
+    if (lastAuthCheckResult !== null && now - lastAuthCheckAt < 20000) {
+      return lastAuthCheckResult;
+    }
+
+    lastAuthCheckAt = now;
+    try {
+      await authAPI.getMe();
+      lastAuthCheckResult = true;
+      return true;
+    } catch {
+      lastAuthCheckResult = false;
+      return false;
+    }
   },
   
   // Récupérer l'utilisateur stocké localement
@@ -564,7 +605,9 @@ export const uploadAPI = {
     const formData = new FormData();
     const filename = uri.split('/').pop() || 'image.jpg';
     const match = /\.(\w+)$/.exec(filename);
-    const type = match ? `image/${match[1]}` : 'image/jpeg';
+    const rawExt = match ? match[1].toLowerCase() : '';
+    const normalizedExt = rawExt === 'jpg' ? 'jpeg' : rawExt;
+    const type = normalizedExt ? `image/${normalizedExt}` : 'image/jpeg';
     
     formData.append('image', {
       uri,
@@ -595,7 +638,9 @@ export const uploadAPI = {
     uris.forEach((uri, index) => {
       const filename = uri.split('/').pop() || `image_${index}.jpg`;
       const match = /\.(\w+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : 'image/jpeg';
+      const rawExt = match ? match[1].toLowerCase() : '';
+      const normalizedExt = rawExt === 'jpg' ? 'jpeg' : rawExt;
+      const type = normalizedExt ? `image/${normalizedExt}` : 'image/jpeg';
       
       formData.append('images', {
         uri,

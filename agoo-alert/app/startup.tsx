@@ -1,23 +1,21 @@
-import { useEffect, useRef } from 'react';
-import {
-  Animated,
-  Dimensions,
-  Easing,
-  StatusBar,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SplashScreen from 'expo-splash-screen';
-import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useRef } from 'react';
+import {
+    Animated,
+    Dimensions,
+    Easing,
+    StatusBar,
+    StyleSheet,
+    View,
+} from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { authAPI } from '@/config/apiConfig';
 import { Colors } from '@/constants/theme';
-
-SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 const { width, height } = Dimensions.get('window');
 const isSmallDevice = height < 700;
@@ -32,6 +30,8 @@ export default function StartupScreen() {
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    SplashScreen.preventAutoHideAsync().catch(() => undefined);
+
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,

@@ -1,32 +1,33 @@
+import { Ionicons } from '@expo/vector-icons';
+import { Image as ExpoImage } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Dimensions,
-  FlatList,
-  Modal,
-  Platform,
-  RefreshControl,
-  StatusBar,
-  StyleSheet,
-  TouchableOpacity,
-  Pressable,
-  ScrollView,
-  View,
-  TextInput,
+    ActivityIndicator,
+    Dimensions,
+    FlatList,
+    Modal,
+    Platform,
+    Pressable,
+    RefreshControl,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { Image as ExpoImage } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ThemedText } from '@/components/themed-text';
 import { DistanceFilter } from '@/components/DistanceFilter';
+import { ThemedText } from '@/components/themed-text';
+import { authAPI } from '@/config/apiConfig';
 import { Colors } from '@/constants/theme';
-import * as Location from 'expo-location';
 import { Coordinates, calculateDistance } from '@/types/location';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchReportsBackendFirst } from '@/utils/reportsSource';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Location from 'expo-location';
 
 type Report = {
   id: string;
@@ -335,20 +336,35 @@ export default function HomeScreen() {
             </View>
 
             <View style={{ flex: 1 }} />
-            <TouchableOpacity
-              onPress={() => router.push({ pathname: '/create-organization' as any })}
-              activeOpacity={0.85}
-              style={styles.aboutBtn}
-            >
-              <Ionicons name="business" size={20} color="#ffffff" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => router.push({ pathname: '/about' as any })}
-              activeOpacity={0.85}
-              style={styles.aboutBtn}
-            >
-              <Ionicons name="information-circle" size={22} color="#ffffff" />
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                onPress={async () => {
+                  try {
+                    await authAPI.logout();
+                  } finally {
+                    router.replace('/login');
+                  }
+                }}
+                activeOpacity={0.85}
+                style={styles.aboutBtn}
+              >
+                <Ionicons name="log-out-outline" size={18} color="#ffffff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push({ pathname: '/create-organization' as any })}
+                activeOpacity={0.85}
+                style={styles.aboutBtn}
+              >
+                <Ionicons name="business" size={18} color="#ffffff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push({ pathname: '/about' as any })}
+                activeOpacity={0.85}
+                style={styles.aboutBtn}
+              >
+                <Ionicons name="information-circle" size={20} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Barre de recherche */}
@@ -798,14 +814,19 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   aboutBtn: {
-    width: 36,
-    height: 36,
+    width: 34,
+    height: 34,
     borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   headerTitle: {
     fontSize: 19,

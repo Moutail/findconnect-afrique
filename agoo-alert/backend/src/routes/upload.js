@@ -7,6 +7,40 @@ const { upload, handleUploadError, getFileUrl } = require('../middleware/upload'
 
 const router = express.Router();
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const safeUnlink = async (filePath, retries = 6) => {
+  for (let i = 0; i < retries; i += 1) {
+    try {
+      fs.unlinkSync(filePath);
+      return true;
+    } catch (e) {
+      if (e && (e.code === 'EPERM' || e.code === 'EBUSY')) {
+        await sleep(80 * (i + 1));
+        continue;
+      }
+      return false;
+    }
+  }
+  return false;
+};
+
+const safeRename = async (from, to, retries = 6) => {
+  for (let i = 0; i < retries; i += 1) {
+    try {
+      fs.renameSync(from, to);
+      return true;
+    } catch (e) {
+      if (e && (e.code === 'EPERM' || e.code === 'EBUSY')) {
+        await sleep(80 * (i + 1));
+        continue;
+      }
+      return false;
+    }
+  }
+  return false;
+};
+
 // POST /api/upload/image - Upload d'une image
 router.post('/image', auth, upload.single('image'), handleUploadError, async (req, res) => {
   try {
@@ -29,20 +63,31 @@ router.post('/image', auth, upload.single('image'), handleUploadError, async (re
       .toFile(thumbnailPath);
     
     // Optimiser l'image originale
-    const optimizedPath = originalPath.replace(ext, '_opt' + ext);
+    const optimizedFilename = `${basename}_opt${ext}`;
+    const optimizedPath = path.join(path.dirname(originalPath), optimizedFilename);
     await sharp(originalPath)
       .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
       .jpeg({ quality: 85 })
       .toFile(optimizedPath);
-    
+
     // Remplacer l'original par l'optimisé
-    fs.unlinkSync(originalPath);
-    fs.renameSync(optimizedPath, originalPath);
-    
+    const deleted = await safeUnlink(originalPath);
+    if (deleted) {
+      const renamed = await safeRename(optimizedPath, originalPath);
+      if (!renamed) {
+        return res.status(500).json({ error: "Erreur lors de l'upload de l'image" });
+      }
+      return res.json({
+        url: getFileUrl(req, filename, 'images'),
+        thumbnail: getFileUrl(req, thumbnailFilename, 'images'),
+        filename,
+      });
+    }
+
     res.json({
-      url: getFileUrl(req, filename, 'images'),
+      url: getFileUrl(req, optimizedFilename, 'images'),
       thumbnail: getFileUrl(req, thumbnailFilename, 'images'),
-      filename,
+      filename: optimizedFilename,
     });
     
   } catch (error) {
@@ -74,20 +119,34 @@ router.post('/images', auth, upload.array('images', 5), handleUploadError, async
           .jpeg({ quality: 80 })
           .toFile(thumbnailPath);
         
-        // Optimiser l'image originale
-        const optimizedPath = originalPath.replace(ext, '_opt' + ext);
+        const optimizedFilename = `${basename}_opt${ext}`;
+        const optimizedPath = path.join(path.dirname(originalPath), optimizedFilename);
         await sharp(originalPath)
           .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
           .jpeg({ quality: 85 })
           .toFile(optimizedPath);
-        
-        fs.unlinkSync(originalPath);
-        fs.renameSync(optimizedPath, originalPath);
+
+        const deleted = await safeUnlink(originalPath);
+        if (deleted) {
+          const renamed = await safeRename(optimizedPath, originalPath);
+          if (!renamed) {
+            return {
+              url: getFileUrl(req, optimizedFilename, 'images'),
+              thumbnail: getFileUrl(req, thumbnailFilename, 'images'),
+              filename: optimizedFilename,
+            };
+          }
+          return {
+            url: getFileUrl(req, filename, 'images'),
+            thumbnail: getFileUrl(req, thumbnailFilename, 'images'),
+            filename,
+          };
+        }
         
         return {
-          url: getFileUrl(req, filename, 'images'),
+          url: getFileUrl(req, optimizedFilename, 'images'),
           thumbnail: getFileUrl(req, thumbnailFilename, 'images'),
-          filename,
+          filename: optimizedFilename,
         };
       })
     );

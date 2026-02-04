@@ -42,7 +42,7 @@ const categoryMetadataSchema = new mongoose.Schema({
   
   // Détails spécifiques aux animaux
   petDetails: {
-    type: String,
+    type: { type: String },
     breed: String,
     name: String,
     age: Number,
@@ -57,7 +57,7 @@ const categoryMetadataSchema = new mongoose.Schema({
   
   // Détails spécifiques aux personnes
   personDetails: {
-    type: String,
+    type: { type: String },
     firstName: String,
     lastName: String,
     age: Number,
@@ -74,7 +74,7 @@ const categoryMetadataSchema = new mongoose.Schema({
   
   // Détails spécifiques aux véhicules
   vehicleDetails: {
-    type: String,
+    type: { type: String },
     make: String,
     model: String,
     year: Number,

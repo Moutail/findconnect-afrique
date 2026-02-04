@@ -73,7 +73,19 @@ const limiter = rateLimit({
   max: 100, // limite chaque IP à 100 requêtes par fenêtre
   message: { error: 'Trop de requêtes, veuillez réessayer plus tard.' },
 });
-app.use('/api/', limiter);
+// Ne pas bloquer le flux d'auth (login/register/refresh) avec le limiter global
+app.use('/api/', (req, res, next) => {
+  if (req.path.startsWith('/auth')) return next();
+  return limiter(req, res, next);
+});
+
+// Limiter dédié à l'auth (plus permissif)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  message: { error: 'Trop de requêtes, veuillez réessayer plus tard.' },
+});
+app.use('/api/auth', authLimiter);
 
 // Parser JSON
 app.use(express.json({ limit: '10mb' }));
