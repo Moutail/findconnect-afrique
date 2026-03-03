@@ -20,6 +20,7 @@ import ProfilePage from './pages/ProfilePage';
 import ConversationsPage from './pages/chat/ConversationsPage';
 import ChatPage from './pages/chat/ChatPage';
 import ChatRequestsPage from './pages/chat/ChatRequestsPage';
+import NotificationsPage from './pages/NotificationsPage';
 
 import AboutPage from './pages/AboutPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
@@ -87,6 +88,7 @@ export default function App() {
         <Route path="/conversations" element={<ConversationsPage />} />
         <Route path="/conversations/:id" element={<ChatPage />} />
         <Route path="/chat-requests" element={<ChatRequestsPage />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
       </Route>
 
       {/* Admin routes */}

@@ -46,8 +46,8 @@ export default function AdminSupportPage() {
   };
 
   const statusBadge = {
-    pending: 'bg-yellow-100 text-yellow-700',
-    in_progress: 'bg-blue-100 text-blue-700',
+    pending: 'bg-accent-100 text-accent-700',
+    in_progress: 'bg-primary-100 text-primary-700',
     resolved: 'bg-green-100 text-green-700',
     closed: 'bg-gray-100 text-gray-500',
   };
@@ -59,46 +59,59 @@ export default function AdminSupportPage() {
     closed: 'Fermé',
   };
 
+  const tabs = [
+    { key: 'pending', label: 'En attente' },
+    { key: 'in_progress', label: 'En cours' },
+    { key: 'resolved', label: 'Résolu' },
+    { key: 'closed', label: 'Fermé' },
+    { key: '', label: 'Toutes' },
+  ];
+
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-        <HelpCircle className="w-6 h-6" /> Demandes de support
-      </h1>
+      <div className="mb-7">
+        <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
+          <div className="w-9 h-9 bg-accent-100 rounded-xl flex items-center justify-center">
+            <HelpCircle className="w-5 h-5 text-accent-700" />
+          </div>
+          Demandes de support
+        </h1>
+      </div>
 
-      <div className="flex gap-2 mb-6">
-        {['pending', 'in_progress', 'resolved', 'closed', ''].map(s => (
-          <button key={s} onClick={() => setStatusFilter(s)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              statusFilter === s ? 'bg-primary-600 text-white' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+      <div className="flex gap-1.5 mb-6 bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 w-fit flex-wrap">
+        {tabs.map(t => (
+          <button key={t.key} onClick={() => setStatusFilter(t.key)}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+              statusFilter === t.key ? 'bg-primary-700 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'
             }`}>
-            {s ? statusLabels[s] : 'Toutes'}
+            {t.label}
           </button>
         ))}
       </div>
 
       {loading ? <LoadingSpinner /> : requests.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-          <HelpCircle className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">Aucune demande de support</p>
+        <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
+          <HelpCircle className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+          <p className="text-gray-400 font-medium">Aucune demande de support</p>
         </div>
       ) : (
         <div className="space-y-4">
           {requests.map(req => (
-            <div key={req._id || req.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-              <div className="flex items-start justify-between mb-3">
+            <div key={req._id || req.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+              <div className="flex items-start justify-between mb-3 gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
-                    <User className="w-5 h-5 text-primary-600" />
+                  <div className="w-11 h-11 bg-accent-100 rounded-xl flex items-center justify-center shrink-0">
+                    <User className="w-5 h-5 text-accent-700" />
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900">{req.contactName}</p>
+                    <p className="font-bold text-gray-900">{req.contactName}</p>
                     <p className="text-sm text-gray-500 flex items-center gap-1">
                       <Phone className="w-3 h-3" /> {req.contactPhone}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="badge bg-gray-100 text-gray-700 text-xs">
+                <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                  <span className="badge bg-gray-100 text-gray-600 text-xs">
                     {REQUEST_TYPE_LABELS[req.requestType]}
                   </span>
                   <span className={`badge text-xs ${statusBadge[req.status]}`}>
@@ -108,29 +121,29 @@ export default function AdminSupportPage() {
               </div>
 
               {req.description && (
-                <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3 mb-3">{req.description}</p>
+                <p className="text-sm text-gray-600 bg-warm-50 rounded-xl p-3 mb-3 leading-relaxed">{req.description}</p>
               )}
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between pt-2">
                 <p className="text-xs text-gray-400 flex items-center gap-1">
                   <Clock className="w-3 h-3" /> {formatDateTime(req.createdAt)}
                 </p>
                 <div className="flex gap-2">
                   {req.status === 'pending' && (
                     <button onClick={() => handleUpdateStatus(req._id || req.id, 'in_progress')}
-                      className="text-xs text-blue-600 hover:bg-blue-50 px-3 py-1 rounded-lg font-medium">
+                      className="text-xs text-primary-700 hover:bg-primary-50 px-3 py-1.5 rounded-xl font-semibold border border-primary-200 transition-colors">
                       Prendre en charge
                     </button>
                   )}
                   {req.status === 'in_progress' && (
                     <button onClick={() => handleUpdateStatus(req._id || req.id, 'resolved')}
-                      className="text-xs text-green-600 hover:bg-green-50 px-3 py-1 rounded-lg font-medium flex items-center gap-1">
+                      className="text-xs text-green-700 hover:bg-green-50 px-3 py-1.5 rounded-xl font-semibold border border-green-200 transition-colors flex items-center gap-1">
                       <CheckCircle className="w-3 h-3" /> Résolu
                     </button>
                   )}
                   {(req.status === 'pending' || req.status === 'in_progress') && (
                     <button onClick={() => handleUpdateStatus(req._id || req.id, 'closed')}
-                      className="text-xs text-gray-500 hover:bg-gray-50 px-3 py-1 rounded-lg font-medium">
+                      className="text-xs text-gray-500 hover:bg-gray-50 px-3 py-1.5 rounded-xl font-semibold border border-gray-200 transition-colors">
                       Fermer
                     </button>
                   )}
@@ -139,7 +152,7 @@ export default function AdminSupportPage() {
 
               {req.notes && (
                 <div className="mt-3 pt-3 border-t border-gray-100">
-                  <p className="text-xs text-gray-500">Notes: {req.notes}</p>
+                  <p className="text-xs text-gray-500">Notes : {req.notes}</p>
                 </div>
               )}
             </div>

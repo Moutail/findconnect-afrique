@@ -78,6 +78,12 @@ app.use('/api/verification', createProxyMiddleware(proxyOptions(
   '/api/verification'
 )));
 
+// Notifications (User Service)
+app.use('/api/notifications', createProxyMiddleware(proxyOptions(
+  process.env.USER_SERVICE_URL || 'http://localhost:5002',
+  '/api/notifications'
+)));
+
 // Publication Service
 app.use('/api/publications', createProxyMiddleware(proxyOptions(
   process.env.PUBLICATION_SERVICE_URL || 'http://localhost:5003',

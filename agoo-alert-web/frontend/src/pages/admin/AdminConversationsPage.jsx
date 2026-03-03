@@ -54,90 +54,93 @@ export default function AdminConversationsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-        <MessageSquare className="w-6 h-6" /> Conversations ({conversations.length})
-      </h1>
+      <div className="mb-7">
+        <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
+          <div className="w-9 h-9 bg-primary-100 rounded-xl flex items-center justify-center">
+            <MessageSquare className="w-5 h-5 text-primary-700" />
+          </div>
+          Conversations
+          <span className="ml-1 text-sm font-semibold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-xl">{conversations.length}</span>
+        </h1>
+      </div>
 
       {conversations.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-          <MessageSquare className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">Aucune conversation</p>
+        <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
+          <MessageSquare className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+          <p className="text-gray-400 font-medium">Aucune conversation</p>
         </div>
       ) : (
         <div className="space-y-3">
           {conversations.map(conv => (
-            <div key={conv._id || conv.id} className="bg-white rounded-xl shadow-sm border border-gray-200">
+            <div key={conv._id || conv.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <button
                 onClick={() => toggleMessages(conv._id || conv.id)}
-                className="w-full p-4 flex items-center gap-4 text-left hover:bg-gray-50 transition-colors"
+                className="w-full p-4 flex items-center gap-4 text-left hover:bg-warm-50 transition-colors"
               >
                 <div className="flex -space-x-2 flex-shrink-0">
                   {conv.participants?.map((p, i) => (
-                    <div key={i} className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center border-2 border-white">
-                      <span className="text-xs font-bold text-primary-600">{p.firstName?.[0]}</span>
+                    <div key={i} className="w-9 h-9 bg-primary-100 rounded-xl flex items-center justify-center border-2 border-white">
+                      <span className="text-xs font-bold text-primary-700">{p.firstName?.[0]?.toUpperCase()}</span>
                     </div>
                   ))}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm text-gray-900">
+                  <p className="font-bold text-sm text-gray-900">
                     {conv.participants?.map(p => `${p.firstName} ${p.lastName}`).join(' ↔ ')}
                   </p>
-                  <p className="text-xs text-gray-500 truncate">
+                  <p className="text-xs text-gray-500 truncate mt-0.5">
                     {conv.lastMessage?.content || 'Pas de message'}
                   </p>
                   {conv.publicationId && (
-                    <p className="text-xs text-primary-500">Re: {conv.publicationId.title}</p>
+                    <p className="text-xs text-primary-600 mt-0.5">Re : {conv.publicationId.title}</p>
                   )}
                 </div>
-                <span className="text-xs text-gray-400">{conv.lastMessage?.sentAt ? timeAgo(conv.lastMessage.sentAt) : ''}</span>
-                {expandedId === (conv._id || conv.id) ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                <span className="text-xs text-gray-400 shrink-0">{conv.lastMessage?.sentAt ? timeAgo(conv.lastMessage.sentAt) : ''}</span>
+                {expandedId === (conv._id || conv.id)
+                  ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
+                  : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />}
               </button>
 
-              {/* Expanded messages */}
               {expandedId === (conv._id || conv.id) && (
-                <div className="border-t border-gray-200 p-4 max-h-96 overflow-y-auto bg-gray-50">
+                <div className="border-t border-gray-100 p-4 max-h-96 overflow-y-auto bg-warm-50">
                   {messagesLoading ? (
                     <LoadingSpinner size="sm" />
                   ) : messages.length === 0 ? (
-                    <p className="text-sm text-gray-400 text-center">Aucun message</p>
+                    <p className="text-sm text-gray-400 text-center py-4">Aucun message</p>
                   ) : (
                     <div className="space-y-3">
                       {messages.map(msg => (
                         <div key={msg._id || msg.id} className="flex gap-2">
-                          <div className="w-6 h-6 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <span className="text-xs font-bold text-primary-600">
-                              {msg.senderId?.firstName?.[0] || '?'}
+                          <div className="w-7 h-7 bg-primary-100 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <span className="text-xs font-bold text-primary-700">
+                              {msg.senderId?.firstName?.[0]?.toUpperCase() || '?'}
                             </span>
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-medium text-gray-700">
+                              <span className="text-xs font-bold text-gray-700">
                                 {msg.senderId?.firstName} {msg.senderId?.lastName}
                               </span>
                               <span className="text-xs text-gray-400">{timeAgo(msg.createdAt)}</span>
                               {msg.type !== 'text' && (
-                                <span className="flex items-center gap-0.5 text-xs text-blue-500">
+                                <span className="flex items-center gap-0.5 text-xs text-accent-700 bg-accent-50 px-1.5 py-0.5 rounded-lg">
                                   {typeIcon[msg.type]} {msg.type}
                                 </span>
                               )}
                             </div>
-
                             {msg.type === 'text' && (
                               <p className="text-sm text-gray-600 mt-0.5">{msg.content}</p>
                             )}
-
                             {msg.type === 'image' && msg.attachment && (
-                              <img src={msg.attachment.thumbnail || msg.attachment.url} alt="" className="mt-1 max-w-[200px] rounded-lg cursor-pointer" onClick={() => window.open(msg.attachment.url, '_blank')} />
+                              <img src={msg.attachment.thumbnail || msg.attachment.url} alt="" className="mt-1 max-w-[200px] rounded-xl cursor-pointer hover:opacity-90" onClick={() => window.open(msg.attachment.url, '_blank')} />
                             )}
-
                             {msg.type === 'audio' && msg.attachment && (
                               <audio controls className="mt-1 max-w-full" style={{ height: 32 }}>
                                 <source src={msg.attachment.url} type={msg.attachment.type} />
                               </audio>
                             )}
-
                             {msg.type === 'video' && msg.attachment && (
-                              <video controls className="mt-1 max-w-[250px] rounded-lg" style={{ maxHeight: 180 }}>
+                              <video controls className="mt-1 max-w-[250px] rounded-xl" style={{ maxHeight: 180 }}>
                                 <source src={msg.attachment.url} type={msg.attachment.type} />
                               </video>
                             )}

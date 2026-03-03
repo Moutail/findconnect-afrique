@@ -1,17 +1,26 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { notificationAPI } from '../lib/api';
 import {
   Search, Bell, Menu, X, User, LogOut, MessageSquare,
   PlusCircle, Home, FileText, Shield, HelpCircle, Building2,
   MapPin, Phone,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function MainLayout() {
   const { isAuthenticated, user, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [unreadNotifs, setUnreadNotifs] = useState(0);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    notificationAPI.list({ limit: 1, unread: 'true' })
+      .then(({ data }) => setUnreadNotifs(data.pagination?.total || 0))
+      .catch(() => {});
+  }, [isAuthenticated, location.pathname]);
 
   const handleLogout = () => {
     logout();
@@ -76,6 +85,12 @@ export default function MainLayout() {
                   <Link to="/chat-requests" className="p-2 text-gray-500 hover:text-primary-700 rounded-xl hover:bg-primary-50 transition-colors" title="Invitations">
                     <Bell className="w-5 h-5" />
                   </Link>
+                  <Link to="/notifications" className="relative p-2 text-gray-500 hover:text-primary-700 rounded-xl hover:bg-primary-50 transition-colors" title="Notifications">
+                    <Bell className="w-5 h-5" />
+                    {unreadNotifs > 0 && (
+                      <span className="absolute top-1 right-1 w-2 h-2 bg-accent-500 rounded-full" />
+                    )}
+                  </Link>
 
                   {/* User dropdown */}
                   <div className="relative group">
@@ -138,7 +153,11 @@ export default function MainLayout() {
                   <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 py-2.5 px-3 text-gray-700 font-semibold rounded-xl hover:bg-warm-50"><Home className="w-4 h-4" /> Tableau de bord</Link>
                   <Link to="/publications/create" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 py-2.5 px-3 text-accent-700 font-semibold rounded-xl hover:bg-accent-50"><PlusCircle className="w-4 h-4" /> Déclarer une perte</Link>
                   <Link to="/conversations" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 py-2.5 px-3 text-gray-700 font-semibold rounded-xl hover:bg-warm-50"><MessageSquare className="w-4 h-4" /> Messages</Link>
-                  <Link to="/chat-requests" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 py-2.5 px-3 text-gray-700 font-semibold rounded-xl hover:bg-warm-50"><Bell className="w-4 h-4" /> Invitations</Link>
+                  <Link to="/chat-requests" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 py-2.5 px-3 text-gray-700 font-semibold rounded-xl hover:bg-warm-50"><MessageSquare className="w-4 h-4" /> Invitations</Link>
+                  <Link to="/notifications" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-between py-2.5 px-3 text-gray-700 font-semibold rounded-xl hover:bg-warm-50">
+                    <span className="flex items-center gap-2"><Bell className="w-4 h-4" /> Notifications</span>
+                    {unreadNotifs > 0 && <span className="text-xs bg-accent-500 text-white font-bold px-2 py-0.5 rounded-full">{unreadNotifs > 9 ? '9+' : unreadNotifs}</span>}
+                  </Link>
                   <Link to="/my-publications" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 py-2.5 px-3 text-gray-700 font-semibold rounded-xl hover:bg-warm-50"><FileText className="w-4 h-4" /> Mes publications</Link>
                   <Link to="/profile" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 py-2.5 px-3 text-gray-700 font-semibold rounded-xl hover:bg-warm-50"><User className="w-4 h-4" /> Mon profil</Link>
                   {isAdmin && (
