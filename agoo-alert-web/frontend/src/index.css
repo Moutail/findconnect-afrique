@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-warm-50 text-gray-900 font-sans antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight;
+  }
+}
+
+@layer components {
+  /* === Boutons === */
+  .btn-primary {
+    @apply bg-primary-700 hover:bg-primary-800 active:bg-primary-900 text-white font-semibold py-2.5 px-5 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow;
+  }
+
+  .btn-secondary {
+    @apply bg-white hover:bg-warm-50 text-gray-700 font-semibold py-2.5 px-5 rounded-xl border border-gray-200 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2 shadow-sm hover:shadow;
+  }
+
+  .btn-danger {
+    @apply bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 px-5 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 shadow-sm;
+  }
+
+  .btn-accent {
+    @apply bg-accent-600 hover:bg-accent-700 text-white font-semibold py-2.5 px-5 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2 shadow-sm hover:shadow;
+  }
+
+  /* === Inputs === */
+  .input-field {
+    @apply w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-400 transition-all duration-200 bg-white placeholder-gray-400 text-gray-800;
+  }
+
+  /* === Cards === */
+  .card {
+    @apply bg-white rounded-2xl shadow-sm border border-gray-100 p-6;
+  }
+
+  .card-warm {
+    @apply bg-warm-50 rounded-2xl border border-warm-200 p-6;
+  }
+
+  /* === Badges === */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+
+  .badge-success {
+    @apply badge bg-primary-100 text-primary-800;
+  }
+
+  .badge-warning {
+    @apply badge bg-accent-100 text-accent-800;
+  }
+
+  .badge-danger {
+    @apply badge bg-red-100 text-red-800;
+  }
+
+  .badge-info {
+    @apply badge bg-sky-100 text-sky-800;
+  }
+
+  /* === Stat card admin === */
+  .stat-card {
+    @apply bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex items-center gap-4;
+  }
+
+  /* === Section titles === */
+  .section-title {
+    @apply text-2xl font-bold text-gray-900;
+  }
+
+  /* Bande tricolore togolaise (décorative) */
+  .togo-accent-bar {
+    height: 3px;
+    background: linear-gradient(90deg, #006A4E 33.3%, #FFCD00 33.3% 66.6%, #D21034 66.6%);
+  }
+}

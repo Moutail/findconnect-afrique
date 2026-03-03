@@ -1,0 +1,25 @@
+{
+  "name": "agoo-alert-web",
+  "version": "1.0.0",
+  "description": "Plateforme web de déclaration de pertes - Agoo Alert",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && npm run install:shared && npm run install:gateway && npm run install:services && npm run install:frontend",
+    "install:shared": "cd backend/shared && npm install",
+    "install:gateway": "cd backend/gateway && npm install",
+    "install:services": "cd backend/services/auth && npm install && cd ../user && npm install && cd ../publication && npm install && cd ../chat && npm install && cd ../upload && npm install && cd ../admin && npm install",
+    "install:frontend": "cd frontend && npm install",
+    "dev": "concurrently --names \"GW,AUTH,USER,PUB,CHAT,UPL,ADM,WEB\" --prefix-colors \"bgBlue,bgGreen,bgYellow,bgMagenta,bgCyan,bgRed,bgWhite,blue\" \"npm run dev:gateway\" \"npm run dev:auth\" \"npm run dev:user\" \"npm run dev:publication\" \"npm run dev:chat\" \"npm run dev:upload\" \"npm run dev:admin\" \"npm run dev:frontend\"",
+    "dev:gateway": "cd backend/gateway && npm run dev",
+    "dev:auth": "cd backend/services/auth && npm run dev",
+    "dev:user": "cd backend/services/user && npm run dev",
+    "dev:publication": "cd backend/services/publication && npm run dev",
+    "dev:chat": "cd backend/services/chat && npm run dev",
+    "dev:upload": "cd backend/services/upload && npm run dev",
+    "dev:admin": "cd backend/services/admin && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
