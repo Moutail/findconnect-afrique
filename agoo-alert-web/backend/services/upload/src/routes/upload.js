@@ -83,36 +83,42 @@ const storage = multer.diskStorage({
 const fileFilter = (req, file, cb) => {
   const normalizedType = (file.mimetype || '').split(';')[0].trim().toLowerCase();
   const ext = path.extname(file.originalname || '').toLowerCase();
-  const allowedTypes = [
-    'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-    'audio/mpeg', 'audio/wav', 'audio/wave', 'audio/x-wav', 'audio/ogg', 'audio/webm',
-    'audio/mp4', 'audio/aac', 'audio/x-m4a', 'audio/3gpp', 'audio/amr',
-    'video/mp4', 'video/webm', 'video/quicktime', 'video/3gpp',
-  ];
-
-  const allowedExtForOctetStream = ['.webm', '.wav', '.ogg', '.mp3', '.mp4', '.mov', '.m4a', '.aac', '.3gp', '.amr', '.jpg', '.jpeg', '.png', '.gif', '.webp'];
   const route = req.originalUrl || '';
   const isAudioRoute = route.includes('/api/upload/audio');
   const isVideoRoute = route.includes('/api/upload/video');
-  const allowedAudioExt = ['.webm', '.wav', '.ogg', '.mp3', '.m4a'];
-  const allowedVideoExt = ['.webm', '.mp4', '.mov'];
 
-  if (allowedTypes.includes(normalizedType)) {
-    cb(null, true);
-  } else if (normalizedType === 'application/octet-stream' && allowedExtForOctetStream.includes(ext)) {
-    cb(null, true);
-  } else if ((normalizedType === 'text/plain' || normalizedType === 'application/x-empty') && ((isAudioRoute && allowedAudioExt.includes(ext)) || (isVideoRoute && allowedVideoExt.includes(ext)))) {
-    cb(null, true);
+  const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  const allowedMediaExt = ['.webm', '.wav', '.ogg', '.mp3', '.mp4', '.mov', '.m4a', '.aac', '.3gp', '.amr'];
+  const fallbackTypes = ['application/octet-stream', 'text/plain', 'application/x-empty', 'application/octet'];
+
+  // Images : liste stricte
+  if (isAudioRoute || isVideoRoute) {
+    // Audio/vidéo : accepter tout type audio/ ou video/ (iOS envoie parfois video/mp4 pour l'audio)
+    if (normalizedType.startsWith('audio/') || normalizedType.startsWith('video/')) {
+      return cb(null, true);
+    }
+    // Fallback pour navigateurs qui envoient application/octet-stream ou text/plain
+    if (fallbackTypes.includes(normalizedType) && allowedMediaExt.includes(ext)) {
+      return cb(null, true);
+    }
   } else {
-    console.warn('Upload rejected:', {
-      mimetype: file.mimetype,
-      normalizedType,
-      originalname: file.originalname,
-      ext,
-      route: req.originalUrl,
-    });
-    cb(new Error('Type de fichier non autorisé'), false);
+    if (allowedImageTypes.includes(normalizedType)) {
+      return cb(null, true);
+    }
+    // Vérification / multiple : aussi PDF et images octet-stream
+    if (normalizedType === 'application/octet-stream' && ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf'].includes(ext)) {
+      return cb(null, true);
+    }
   }
+
+  console.warn('Upload rejected:', {
+    mimetype: file.mimetype,
+    normalizedType,
+    originalname: file.originalname,
+    ext,
+    route: req.originalUrl,
+  });
+  cb(new Error('Type de fichier non autorisé'), false);
 };
 
 const upload = multer({
