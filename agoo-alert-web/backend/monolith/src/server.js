@@ -1,9 +1,14 @@
 require('dotenv').config();
+const path = require('path');
+
+process.env.NODE_PATH = process.env.NODE_PATH
+  ? `${process.env.NODE_PATH}${path.delimiter}${path.join(__dirname, '..', 'node_modules')}`
+  : path.join(__dirname, '..', 'node_modules');
+require('module').Module._initPaths();
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const mongoose = require('../../shared/mongoose');
-const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
 
