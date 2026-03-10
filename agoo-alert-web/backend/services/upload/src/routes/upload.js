@@ -85,11 +85,12 @@ const fileFilter = (req, file, cb) => {
   const ext = path.extname(file.originalname || '').toLowerCase();
   const allowedTypes = [
     'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-    'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/webm',
-    'video/mp4', 'video/webm', 'video/quicktime',
+    'audio/mpeg', 'audio/wav', 'audio/wave', 'audio/x-wav', 'audio/ogg', 'audio/webm',
+    'audio/mp4', 'audio/aac', 'audio/x-m4a', 'audio/3gpp', 'audio/amr',
+    'video/mp4', 'video/webm', 'video/quicktime', 'video/3gpp',
   ];
 
-  const allowedExtForOctetStream = ['.webm', '.wav', '.ogg', '.mp3', '.mp4', '.mov', '.m4a', '.jpg', '.jpeg', '.png', '.gif', '.webp'];
+  const allowedExtForOctetStream = ['.webm', '.wav', '.ogg', '.mp3', '.mp4', '.mov', '.m4a', '.aac', '.3gp', '.amr', '.jpg', '.jpeg', '.png', '.gif', '.webp'];
   const route = req.originalUrl || '';
   const isAudioRoute = route.includes('/api/upload/audio');
   const isVideoRoute = route.includes('/api/upload/video');

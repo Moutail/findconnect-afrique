@@ -231,7 +231,15 @@ export default function ChatPage() {
       mediaStreamRef.current = stream;
 
       recordChunksRef.current = [];
-      const recorder = new MediaRecorder(stream);
+
+      // Détecter le meilleur format supporté par le navigateur (iOS = audio/mp4, Android/Chrome = audio/webm)
+      const audioTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4', 'audio/aac'];
+      const videoTypes = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
+      const preferredTypes = mode === 'video' ? videoTypes : audioTypes;
+      const bestMime = preferredTypes.find(t => MediaRecorder.isTypeSupported(t)) || '';
+      const recorderOptions = bestMime ? { mimeType: bestMime } : {};
+
+      const recorder = new MediaRecorder(stream, recorderOptions);
       mediaRecorderRef.current = recorder;
 
       const startedAt = Date.now();
@@ -245,9 +253,11 @@ export default function ChatPage() {
       recorder.onstop = () => {
         const endedAt = Date.now();
         const dur = Math.max(0, Math.round((endedAt - startedAt) / 1000));
-        const mime = recorder.mimeType || (mode === 'video' ? 'video/webm' : 'audio/webm');
+        const mime = recorder.mimeType || bestMime || (mode === 'video' ? 'video/webm' : 'audio/webm');
+        const baseMime = mime.split(';')[0];
+        const extMap = { 'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mp4': 'mp4', 'audio/aac': 'aac', 'video/webm': 'webm', 'video/mp4': 'mp4' };
+        const ext = extMap[baseMime] || (mode === 'video' ? 'webm' : 'webm');
         const blob = new Blob(recordChunksRef.current, { type: mime });
-        const ext = mode === 'video' ? 'webm' : 'webm';
         const file = new File([blob], `${mode}_${new Date().toISOString().replace(/[:.]/g, '-')}.${ext}`, { type: mime });
 
         if (attachmentPreview?.previewUrl) {
