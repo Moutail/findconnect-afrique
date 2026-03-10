@@ -9,14 +9,40 @@ const router = express.Router();
 const { authenticate } = require('../../../../shared/middleware');
 
 // Configuration des dossiers d'upload
-const uploadDir = process.env.UPLOAD_PATH || path.join(__dirname, '../../uploads');
+let uploadDir = process.env.UPLOAD_PATH || path.join(__dirname, '../../uploads');
 const dirs = ['images', 'thumbnails', 'audio', 'video', 'documents', 'verification'];
-dirs.forEach(dir => {
-  const fullPath = path.join(uploadDir, dir);
-  if (!fs.existsSync(fullPath)) {
-    fs.mkdirSync(fullPath, { recursive: true });
+
+const ensureUploadDirs = (baseDir) => {
+  dirs.forEach(dir => {
+    const fullPath = path.join(baseDir, dir);
+    if (!fs.existsSync(fullPath)) {
+      fs.mkdirSync(fullPath, { recursive: true });
+    }
+  });
+};
+
+try {
+  ensureUploadDirs(uploadDir);
+} catch (err) {
+  const fallbackDir = path.join(process.cwd(), 'uploads');
+  try {
+    ensureUploadDirs(fallbackDir);
+    uploadDir = fallbackDir;
+    console.warn('Upload path not writable, falling back to local uploads directory:', {
+      attempted: process.env.UPLOAD_PATH,
+      fallback: fallbackDir,
+      error: err?.message,
+    });
+  } catch (fallbackErr) {
+    console.error('Failed to initialize upload directories:', {
+      attempted: uploadDir,
+      fallback: fallbackDir,
+      error: err?.message,
+      fallbackError: fallbackErr?.message,
+    });
+    throw fallbackErr;
   }
-});
+}
 
 // Configuration Multer
 const storage = multer.diskStorage({
