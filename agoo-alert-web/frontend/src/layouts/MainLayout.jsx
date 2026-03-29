@@ -4,7 +4,7 @@ import { notificationAPI } from '../lib/api';
 import {
   Search, Bell, Menu, X, User, LogOut, MessageSquare,
   PlusCircle, Home, FileText, Shield, HelpCircle, Building2,
-  MapPin, Phone,
+  MapPin, Phone, UserPlus,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import HelpChatbot from '../components/HelpChatbot';
@@ -83,8 +83,8 @@ export default function MainLayout() {
                   <Link to="/conversations" className="p-2 text-gray-500 hover:text-primary-700 rounded-xl hover:bg-primary-50 transition-colors" title="Messages">
                     <MessageSquare className="w-5 h-5" />
                   </Link>
-                  <Link to="/chat-requests" className="p-2 text-gray-500 hover:text-primary-700 rounded-xl hover:bg-primary-50 transition-colors" title="Invitations">
-                    <Bell className="w-5 h-5" />
+                  <Link to="/chat-requests" className="p-2 text-gray-500 hover:text-primary-700 rounded-xl hover:bg-primary-50 transition-colors" title="Demandes de chat">
+                    <UserPlus className="w-5 h-5" />
                   </Link>
                   <Link to="/notifications" className="relative p-2 text-gray-500 hover:text-primary-700 rounded-xl hover:bg-primary-50 transition-colors" title="Notifications">
                     <Bell className="w-5 h-5" />
@@ -154,7 +154,7 @@ export default function MainLayout() {
                   <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 py-2.5 px-3 text-gray-700 font-semibold rounded-xl hover:bg-warm-50"><Home className="w-4 h-4" /> Tableau de bord</Link>
                   <Link to="/publications/create" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 py-2.5 px-3 text-accent-700 font-semibold rounded-xl hover:bg-accent-50"><PlusCircle className="w-4 h-4" /> Déclarer une perte</Link>
                   <Link to="/conversations" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 py-2.5 px-3 text-gray-700 font-semibold rounded-xl hover:bg-warm-50"><MessageSquare className="w-4 h-4" /> Messages</Link>
-                  <Link to="/chat-requests" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 py-2.5 px-3 text-gray-700 font-semibold rounded-xl hover:bg-warm-50"><MessageSquare className="w-4 h-4" /> Invitations</Link>
+                  <Link to="/chat-requests" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 py-2.5 px-3 text-gray-700 font-semibold rounded-xl hover:bg-warm-50"><UserPlus className="w-4 h-4" /> Demandes de chat</Link>
                   <Link to="/notifications" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-between py-2.5 px-3 text-gray-700 font-semibold rounded-xl hover:bg-warm-50">
                     <span className="flex items-center gap-2"><Bell className="w-4 h-4" /> Notifications</span>
                     {unreadNotifs > 0 && <span className="text-xs bg-accent-500 text-white font-bold px-2 py-0.5 rounded-full">{unreadNotifs > 9 ? '9+' : unreadNotifs}</span>}
