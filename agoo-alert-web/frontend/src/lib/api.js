@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const normalizeApiBaseUrl = (value) => {
   if (!value) return '/api';
-  const trimmed = String(value).replace(/\/+$/, '');
+  const trimmed = String(value).trim().replace(/\/+$/, '');
   if (trimmed === '/api') return '/api';
   if (trimmed.endsWith('/api')) return trimmed;
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return `${trimmed}/api`;
