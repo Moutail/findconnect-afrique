@@ -7,6 +7,7 @@ import {
   MapPin, Phone,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import HelpChatbot from '../components/HelpChatbot';
 
 export default function MainLayout() {
   const { isAuthenticated, user, isAdmin, logout } = useAuth();
@@ -234,6 +235,9 @@ export default function MainLayout() {
           </div>
         </div>
       </footer>
+
+      {/* Chatbot d'aide */}
+      <HelpChatbot />
     </div>
   );
 }

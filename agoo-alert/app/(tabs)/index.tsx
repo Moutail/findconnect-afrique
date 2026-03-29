@@ -684,6 +684,15 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Bouton flottant d'aide */}
+      <TouchableOpacity
+        style={styles.helpFab}
+        activeOpacity={0.9}
+        onPress={() => router.push('/help-chat' as any)}
+      >
+        <Ionicons name="help-buoy" size={26} color="#ffffff" />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -1124,5 +1133,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
+  },
+  helpFab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 110,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.light.togoGreen,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
 });
