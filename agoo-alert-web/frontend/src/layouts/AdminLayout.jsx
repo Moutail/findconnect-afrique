@@ -2,7 +2,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
   LayoutDashboard, Users, FileText, ShieldCheck, Building2,
-  MessageSquare, HelpCircle, LogOut, ArrowLeft, Search, ChevronRight,
+  MessageSquare, HelpCircle, LogOut, ArrowLeft, ChevronRight,
 } from 'lucide-react';
 
 const sidebarLinks = [
@@ -32,9 +32,7 @@ export default function AdminLayout() {
         {/* Logo */}
         <div className="px-5 pt-6 pb-5 border-b border-primary-800/60">
           <Link to="/" className="flex items-center gap-2.5 mb-1">
-            <div className="w-8 h-8 bg-accent-500 rounded-lg flex items-center justify-center shadow-sm">
-              <Search className="w-4 h-4 text-white" />
-            </div>
+            <img src="/logo.jpg" alt="AgooAlert" className="h-8 w-auto rounded-lg" />
             <span className="text-lg font-black text-white">
               Agoo<span className="text-accent-400">Alert</span>
             </span>

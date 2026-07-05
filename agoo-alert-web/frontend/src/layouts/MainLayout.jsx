@@ -55,9 +55,7 @@ export default function MainLayout() {
 
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2.5 shrink-0">
-              <div className="w-9 h-9 bg-primary-700 rounded-xl flex items-center justify-center shadow-sm">
-                <Search className="w-5 h-5 text-white" />
-              </div>
+              <img src="/logo.jpg" alt="AgooAlert" className="h-9 w-auto rounded-xl" />
               <span className="text-xl font-black text-gray-900">
                 Agoo<span className="text-primary-700">Alert</span>
               </span>
@@ -194,9 +192,7 @@ export default function MainLayout() {
             {/* Brand */}
             <div className="md:col-span-2">
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 bg-accent-500 rounded-lg flex items-center justify-center">
-                  <Search className="w-4 h-4 text-white" />
-                </div>
+                <img src="/logo.jpg" alt="AgooAlert" className="h-8 w-auto rounded-lg" />
                 <span className="text-xl font-black text-white">Agoo<span className="text-accent-400">Alert</span></span>
               </div>
               <p className="text-sm text-primary-300 leading-relaxed max-w-sm">
