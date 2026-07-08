@@ -7,3 +7,5 @@ build/
 uploads/
 thumbnails/
 .vite/
+
+.vercel
